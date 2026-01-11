@@ -4,14 +4,28 @@
  * คำนวณราคาห้องพักแบบ dynamic ตามฤดูกาลและอาหารเช้า
  */
 
-require_once __DIR__ . '/Database.php';
+
+//// init for SESSION , PROJECT_PATH , etc..
+// Auto-find project root
+$projectRoot = __DIR__;
+while (!file_exists($projectRoot . '/includes/init.php')) {
+    $parent = dirname($projectRoot);
+    if ($parent === $projectRoot) {
+        die('Error: Cannot find project root');
+    }
+    $projectRoot = $parent;
+}
+require_once $projectRoot . '/includes/init.php';
+
+
+require_once PROJECT_ROOT . '/includes/Database.php';
 
 class PriceCalculator {
     private $db;
     private $conn;
     
     public function __construct() {
-        $this->db = new Database();
+        $this->db = Database::getInstance();
         $this->conn = $this->db->getConnection();
     }
     
@@ -77,7 +91,7 @@ class PriceCalculator {
                 'success' => true,
                 'total_price' => $totalPrice,
                 'base_price' => $roomInfo['base_price'],
-                'room_name' => $roomInfo['room_type_name'],
+                'room_type_name' => $roomInfo['room_type_name'],
                 'nights' => $nights,
                 'breakfast_included_in_room' => (bool)$roomInfo['breakfast_included'],
                 'breakfast_requested' => $includeBreakfast,

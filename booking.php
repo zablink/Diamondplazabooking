@@ -1,9 +1,21 @@
 <?php
-require_once '../config/config.php';
-require_once '../includes/Database.php';
-require_once '../includes/helpers.php';
-require_once '../modules/hotel/Hotel.php';
-require_once '../modules/booking/Booking.php';
+//// init for SESSION , PROJECT_PATH , etc..
+// Auto-find project root
+$projectRoot = __DIR__;
+while (!file_exists($projectRoot . '/includes/init.php')) {
+    $parent = dirname($projectRoot);
+    if ($parent === $projectRoot) {
+        die('Error: Cannot find project root');
+    }
+    $projectRoot = $parent;
+}
+require_once $projectRoot . '/includes/init.php';
+
+require_once PROJECT_ROOT . '/config/config.php';
+require_once PROJECT_ROOT . '/includes/Database.php';
+require_once PROJECT_ROOT . '/includes/helpers.php';
+require_once PROJECT_ROOT . '/modules/hotel/Hotel.php';
+require_once PROJECT_ROOT . '/modules/booking/Booking.php';
 
 // Check if user is logged in
 if (!isLoggedIn()) {
@@ -207,7 +219,7 @@ if ($checkIn && $checkOut) {
                     
                     <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-bottom: 1rem;">
                         <h4 style="font-size: 1rem; margin-bottom: 0.5rem;">
-                            <?php echo htmlspecialchars($selectedRoom['room_name']); ?>
+                            <?php echo htmlspecialchars($selectedRoom['room_type_name']); ?>
                         </h4>
                         <div style="color: var(--text-secondary); font-size: 0.9rem;">
                             <div style="margin-bottom: 0.3rem;">

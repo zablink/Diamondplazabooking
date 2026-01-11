@@ -1,13 +1,25 @@
 <?php
-require_once '../config/config.php';
-require_once '../includes/Database.php';
-require_once '../includes/helpers.php';
-require_once '../modules/auth/Auth.php';
-require_once '../modules/auth/SocialAuth.php';
+//// init for SESSION , PROJECT_PATH , etc..
+// Auto-find project root
+$projectRoot = __DIR__;
+while (!file_exists($projectRoot . '/includes/init.php')) {
+    $parent = dirname($projectRoot);
+    if ($parent === $projectRoot) {
+        die('Error: Cannot find project root');
+    }
+    $projectRoot = $parent;
+}
+require_once $projectRoot . '/includes/init.php';
+
+require_once PROJECT_ROOT . '/config/config.php';
+require_once PROJECT_ROOT . '/includes/Database.php';
+require_once PROJECT_ROOT . '/includes/helpers.php';
+require_once PROJECT_ROOT . '/modules/auth/Auth.php';
+require_once PROJECT_ROOT . '/modules/auth/SocialAuth.php';
 
 // If already logged in, redirect to home
 if (isLoggedIn()) {
-    redirect('/public/index.php');
+    redirect(PROJECT_ROOT . '/index.php');
 }
 
 $auth = new Auth();
@@ -33,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if ($result['success']) {
             setFlashMessage('สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ', 'success');
-            redirect('/public/login.php');
+            redirect(PROJECT_ROOT . '/login.php');
         } else {
             $error = $result['message'];
         }

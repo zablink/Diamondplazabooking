@@ -53,7 +53,7 @@ CREATE TABLE bk_hotels (
 CREATE TABLE bk_room_types (
     room_type_id INT PRIMARY KEY AUTO_INCREMENT,
     hotel_id INT NOT NULL,
-    room_name VARCHAR(255) NOT NULL,
+    room_type_name VARCHAR(255) NOT NULL,
     description TEXT,
     size_sqm INT,
     max_occupancy INT NOT NULL,
@@ -160,7 +160,7 @@ INSERT INTO bk_hotels (hotel_name, description, address, city, country, star_rat
  '["hotel3_1.jpg", "hotel3_2.jpg", "hotel3_3.jpg"]');
 
 -- Insert Sample Room Types
-INSERT INTO bk_room_types (hotel_id, room_name, description, size_sqm, max_occupancy, bed_type, amenities, images, base_price, total_rooms) VALUES
+INSERT INTO bk_room_types (hotel_id, room_type_name, description, size_sqm, max_occupancy, bed_type, amenities, images, base_price, total_rooms) VALUES
 (1, 'Deluxe King Room', 'Spacious room with king bed and city view', 35, 2, 'King Bed', 
  '["Air Conditioning", "Flat-screen TV", "Mini Bar", "Safe", "Coffee Maker"]',
  '["room1_1.jpg", "room1_2.jpg"]', 3500.00, 20),

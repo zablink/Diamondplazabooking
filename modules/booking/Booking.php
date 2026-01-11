@@ -8,8 +8,8 @@ class Booking {
     private $db;
     
     public function __construct() {
-        $database = new Database();
-        $this->db = $database->getConnection();
+        // ใช้ Singleton Pattern แทน new Database()
+        $this->db = Database::getInstance()->getConnection();
     }
     
     /**
@@ -95,7 +95,7 @@ class Booking {
     public function getBookingById($bookingId, $userId = null) {
         try {
             $sql = "SELECT b.*, h.hotel_name, h.address, h.city, h.phone as hotel_phone,
-                    rt.room_name, rt.bed_type, rt.max_occupancy,
+                    rt.room_type_name, rt.bed_type, rt.max_occupancy,
                     u.first_name, u.last_name, u.email, u.phone
                     FROM bookings b
                     JOIN hotels h ON b.hotel_id = h.hotel_id
@@ -125,7 +125,7 @@ class Booking {
     public function getBookingByReference($reference) {
         try {
             $sql = "SELECT b.*, h.hotel_name, h.address, h.city, h.phone as hotel_phone,
-                    rt.room_name, rt.bed_type, rt.max_occupancy, rt.images as room_images,
+                    rt.room_type_name, rt.bed_type, rt.max_occupancy, rt.images as room_images,
                     u.first_name, u.last_name, u.email, u.phone
                     FROM bookings b
                     JOIN hotels h ON b.hotel_id = h.hotel_id
@@ -148,7 +148,7 @@ class Booking {
     public function getUserBookings($userId, $status = null) {
         try {
             $sql = "SELECT b.*, h.hotel_name, h.city, h.images as hotel_images,
-                    rt.room_name
+                    rt.room_type_name
                     FROM bookings b
                     JOIN hotels h ON b.hotel_id = h.hotel_id
                     JOIN room_types rt ON b.room_type_id = rt.room_type_id

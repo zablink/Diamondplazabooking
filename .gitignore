@@ -1,0 +1,27 @@
+id_codeberg_for_hotel_booking.pub
+id_codeberg_for_hotel_booking
+
+# Sensitive configuration
+config.php
+config/*
+
+# Logs
+*.log
+logs/*.log
+
+# Cache & Temp
+cache/*
+tmp/*
+
+# User uploads
+images/uploads/*
+!images/uploads/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

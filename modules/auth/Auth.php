@@ -8,8 +8,7 @@ class Auth {
     private $db;
     
     public function __construct() {
-        $database = new Database();
-        $this->db = $database->getConnection();
+        $this->db = Database::getInstance()->getConnection();
     }
     
     /**
@@ -18,7 +17,7 @@ class Auth {
     public function register($email, $password, $firstName, $lastName, $phone = '') {
         try {
             // Check if email already exists
-            $sql = "SELECT user_id FROM users WHERE email = :email";
+            $sql = "SELECT user_id FROM bk_users WHERE email = :email";
             $stmt = $this->db->prepare($sql);
             $stmt->execute(['email' => $email]);
             
@@ -30,7 +29,7 @@ class Auth {
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
             
             // Insert user
-            $sql = "INSERT INTO users (email, password, first_name, last_name, phone) 
+            $sql = "INSERT INTO bk_users (email, password, first_name, last_name, phone) 
                     VALUES (:email, :password, :first_name, :last_name, :phone)";
             
             $stmt = $this->db->prepare($sql);
@@ -58,7 +57,7 @@ class Auth {
      */
     public function login($email, $password) {
         try {
-            $sql = "SELECT * FROM users WHERE email = :email";
+            $sql = "SELECT * FROM bk_users WHERE email = :email";
             $stmt = $this->db->prepare($sql);
             $stmt->execute(['email' => $email]);
             
@@ -84,9 +83,20 @@ class Auth {
     
     /**
      * Logout user
+     * Note: สำหรับ Social Login ให้ใช้ logout.php แทน
      */
     public function logout() {
+        // Clear all session data
+        $_SESSION = array();
+        
+        // Delete session cookie
+        if (isset($_COOKIE[session_name()])) {
+            setcookie(session_name(), '', time() - 3600, '/');
+        }
+        
+        // Destroy session
         session_destroy();
+        
         return ['success' => true, 'message' => 'ออกจากระบบสำเร็จ'];
     }
     
@@ -107,7 +117,7 @@ class Auth {
         
         try {
             $sql = "SELECT user_id, email, first_name, last_name, phone, role, created_at 
-                    FROM users WHERE user_id = :user_id";
+                    FROM bk_users WHERE user_id = :user_id";
             $stmt = $this->db->prepare($sql);
             $stmt->execute(['user_id' => $_SESSION['user_id']]);
             
@@ -122,7 +132,7 @@ class Auth {
      */
     public function updateProfile($userId, $firstName, $lastName, $phone) {
         try {
-            $sql = "UPDATE users 
+            $sql = "UPDATE bk_users 
                     SET first_name = :first_name, last_name = :last_name, phone = :phone 
                     WHERE user_id = :user_id";
             
@@ -153,7 +163,7 @@ class Auth {
     public function changePassword($userId, $currentPassword, $newPassword) {
         try {
             // Verify current password
-            $sql = "SELECT password FROM users WHERE user_id = :user_id";
+            $sql = "SELECT password FROM bk_users WHERE user_id = :user_id";
             $stmt = $this->db->prepare($sql);
             $stmt->execute(['user_id' => $userId]);
             $user = $stmt->fetch();
@@ -164,7 +174,7 @@ class Auth {
             
             // Update password
             $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-            $sql = "UPDATE users SET password = :password WHERE user_id = :user_id";
+            $sql = "UPDATE bk_users SET password = :password WHERE user_id = :user_id";
             $stmt = $this->db->prepare($sql);
             $result = $stmt->execute([
                 'password' => $hashedPassword,

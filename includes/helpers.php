@@ -6,8 +6,9 @@
 /**
  * Redirect to a page
  */
-function redirect($page) {
-    header("Location: " . SITE_URL . $page);
+function redirect($url) {
+    session_write_close();
+    header("Location: $url");
     exit();
 }
 
@@ -22,7 +23,16 @@ function isLoggedIn() {
  * Check if user is admin
  */
 function isAdmin() {
-    return isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+    return isset($_SESSION['admin_id']) || 
+           (isset($_SESSION['role']) && $_SESSION['role'] === 'admin');
+}
+
+function getUserId() {
+    return $_SESSION['user_id'] ?? null;
+}
+
+function getAdminId() {
+    return $_SESSION['admin_id'] ?? null;
 }
 
 /**
@@ -52,6 +62,36 @@ function formatPrice($price) {
 function formatDate($date) {
     return date('d M Y', strtotime($date));
 }
+
+/**
+ * Format datetime
+ */
+function formatDateTime($datetime, $format = 'd/m/Y H:i') {
+    if (empty($datetime)) return '';
+    return date($format, strtotime($datetime));
+}
+
+/**
+ * Format Thai date
+ */
+function formatThaiDate($date) {
+    if (empty($date)) return '';
+    
+    $timestamp = strtotime($date);
+    $day = date('d', $timestamp);
+    $month = date('n', $timestamp);
+    $year = date('Y', $timestamp) + 543; // Buddhist year
+    
+    $thaiMonths = [
+        1 => 'มกราคม', 2 => 'กุมภาพันธ์', 3 => 'มีนาคม',
+        4 => 'เมษายน', 5 => 'พฤษภาคม', 6 => 'มิถุนายน',
+        7 => 'กรกฎาคม', 8 => 'สิงหาคม', 9 => 'กันยายน',
+        10 => 'ตุลาคม', 11 => 'พฤศจิกายน', 12 => 'ธันวาคม'
+    ];
+    
+    return $day . ' ' . $thaiMonths[$month] . ' ' . $year;
+}
+
 
 /**
  * Calculate nights between dates
@@ -90,6 +130,8 @@ function getFlashMessage() {
     }
     return null;
 }
+
+
 
 /**
  * Generate star rating HTML

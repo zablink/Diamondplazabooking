@@ -1,8 +1,27 @@
 <?php
-require_once './config/config.php';
-require_once './includes/Database.php';
-require_once './includes/helpers.php';
-require_once './modules/hotel/Hotel.php';
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/php_errors.log');
+
+
+//// init for SESSION , PROJECT_PATH , etc..
+// Auto-find project root
+$projectRoot = __DIR__;
+while (!file_exists($projectRoot . '/includes/init.php')) {
+    $parent = dirname($projectRoot);
+    if ($parent === $projectRoot) {
+        die('Error: Cannot find project root');
+    }
+    $projectRoot = $parent;
+}
+require_once $projectRoot . '/includes/init.php';
+
+require_once PROJECT_ROOT . '/config/config.php';
+require_once PROJECT_ROOT . '/includes/Database.php';
+require_once PROJECT_ROOT . '/includes/helpers.php';
+require_once PROJECT_ROOT . '/modules/hotel/Hotel.php';
 
 $hotelObj = new Hotel();
 
@@ -10,7 +29,7 @@ $hotelObj = new Hotel();
 $hotel = $hotelObj->getHotelById(HOTEL_ID);
 
 if (!$hotel) {
-    die('ไม่พบข้อมูลโรงแรม กรุณาตรวจสอบการตั้งค่า HOTEL_ID ใน config.php');
+    die('Hotel not found. Please check HOTEL_ID in config.php');
 }
 
 // ดึงห้องพักทั้งหมด
@@ -24,41 +43,13 @@ $flashMessage = getFlashMessage();
 // ดึงข้อมูลเพิ่มเติม
 $amenities = parseJSON($hotel['amenities']);
 $images = parseJSON($hotel['images']);
+
+// ตั้งค่า page title
+$page_title = htmlspecialchars($hotel['hotel_name']) . ' - ' . SITE_NAME;
+
+// Include header
+include './includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo SITE_NAME; ?> - จองโรงแรมออนไลน์</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-</head>
-<body>
-    <!-- Navigation -->
-    <nav class="navbar">
-        <div class="container">
-            <a href="index.php" class="logo">
-                <i class="fas fa-hotel"></i> <?php echo htmlspecialchars($hotel['hotel_name']); ?>
-            </a>
-            <ul class="nav-links">
-                <li><a href="index.php">หน้าแรก</a></li>
-                <li><a href="#rooms">ห้องพัก</a></li>
-                <li><a href="#about">เกี่ยวกับเรา</a></li>
-                <li><a href="#reviews">รีวิว</a></li>
-                <?php if (isLoggedIn()): ?>
-                    <li><a href="my_bookings.php">การจองของฉัน</a></li>
-                    <li><a href="profile.php">
-                        <i class="fas fa-user"></i> <?php echo $_SESSION['first_name']; ?>
-                    </a></li>
-                    <li><a href="logout.php">ออกจากระบบ</a></li>
-                <?php else: ?>
-                    <li><a href="login.php">เข้าสู่ระบบ</a></li>
-                    <li><a href="register.php">สมัครสมาชิก</a></li>
-                <?php endif; ?>
-            </ul>
-        </div>
-    </nav>
 
     <!-- Flash Message -->
     <?php if ($flashMessage): ?>
@@ -75,7 +66,7 @@ $images = parseJSON($hotel['images']);
             <h1><?php echo htmlspecialchars($hotel['hotel_name']); ?></h1>
             <div style="margin: 1rem 0;">
                 <?php echo generateStarRating($hotel['star_rating']); ?>
-                <?php if ($hotel['avg_rating']): ?>
+                <?php if (isset($hotel['avg_rating'])): ?>
                     <span style="background: rgba(255,255,255,0.2); padding: 0.5rem 1rem; border-radius: 20px; margin-left: 1rem;">
                         <i class="fas fa-star"></i> <?php echo number_format($hotel['avg_rating'], 1); ?>/5.0
                     </span>
@@ -89,47 +80,12 @@ $images = parseJSON($hotel['images']);
         </div>
     </section>
 
-    <!-- Quick Booking Box -->
-    <section class="container" style="margin-top: -3rem; position: relative; z-index: 10;">
-        <div class="search-box">
-            <h3 style="margin-bottom: 1.5rem; color: var(--text-primary);">
-                <i class="fas fa-calendar-check"></i> จองห้องพักของคุณ
-            </h3>
-            <form action="#rooms" method="GET" class="search-form">
-                <div class="form-group">
-                    <label>วันที่เช็คอิน</label>
-                    <input type="date" name="check_in" id="check_in" required>
-                </div>
-                
-                <div class="form-group">
-                    <label>วันที่เช็คเอาท์</label>
-                    <input type="date" name="check_out" id="check_out" required>
-                </div>
-                
-                <div class="form-group">
-                    <label>จำนวนผู้เข้าพัก</label>
-                    <select name="guests">
-                        <option value="1">1 คน</option>
-                        <option value="2" selected>2 คน</option>
-                        <option value="3">3 คน</option>
-                        <option value="4">4 คน</option>
-                        <option value="5">5+ คน</option>
-                    </select>
-                </div>
-                
-                <button type="submit" class="btn btn-primary" style="align-self: end;">
-                    <i class="fas fa-search"></i> ค้นหาห้องว่าง
-                </button>
-            </form>
-        </div>
-    </section>
-
     <!-- About Hotel -->
     <section class="container" id="about" style="margin: 3rem auto;">
         <div style="background: white; padding: 3rem; border-radius: 12px; box-shadow: var(--shadow);">
             <h2 style="font-size: 2rem; margin-bottom: 1.5rem;">
                 <i class="fas fa-info-circle" style="color: var(--primary-color);"></i>
-                เกี่ยวกับเรา
+                <?php _e('home.about_hotel'); ?>
             </h2>
             
             <!-- Gallery -->
@@ -165,199 +121,209 @@ $images = parseJSON($hotel['images']);
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
                 <div style="text-align: center; padding: 1.5rem; background: var(--bg-light); border-radius: 8px;">
                     <i class="fas fa-map-marker-alt" style="font-size: 2rem; color: var(--primary-color); margin-bottom: 0.5rem;"></i>
-                    <h4>ที่ตั้ง</h4>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem;">
-                        <?php echo htmlspecialchars($hotel['city']); ?>
-                    </p>
+                    <h4><?php _e('home.location'); ?></h4>
+                    <p style="color: var(--text-secondary); margin-top: 0.5rem;"><?php echo htmlspecialchars($hotel['city']); ?></p>
                 </div>
-                
                 <div style="text-align: center; padding: 1.5rem; background: var(--bg-light); border-radius: 8px;">
-                    <i class="fas fa-phone" style="font-size: 2rem; color: var(--primary-color); margin-bottom: 0.5rem;"></i>
-                    <h4>ติดต่อเรา</h4>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem;">
-                        <?php echo htmlspecialchars($hotel['phone']); ?>
-                    </p>
+                    <i class="fas fa-star" style="font-size: 2rem; color: var(--secondary-color); margin-bottom: 0.5rem;"></i>
+                    <h4><?php _e('home.rating'); ?></h4>
+                    <p style="color: var(--text-secondary); margin-top: 0.5rem;"><?php echo generateStarRating($hotel['star_rating']); ?></p>
                 </div>
-                
                 <div style="text-align: center; padding: 1.5rem; background: var(--bg-light); border-radius: 8px;">
-                    <i class="fas fa-envelope" style="font-size: 2rem; color: var(--primary-color); margin-bottom: 0.5rem;"></i>
-                    <h4>อีเมล</h4>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem;">
-                        <?php echo htmlspecialchars($hotel['email']); ?>
-                    </p>
+                    <i class="fas fa-phone" style="font-size: 2rem; color: var(--success-color); margin-bottom: 0.5rem;"></i>
+                    <h4><?php _e('home.contact'); ?></h4>
+                    <p style="color: var(--text-secondary); margin-top: 0.5rem;"><?php echo htmlspecialchars($hotel['phone']); ?></p>
                 </div>
             </div>
+            
+            <?php if (!empty($amenities)): ?>
+            <div style="margin-top: 2rem; padding-top: 2rem; border-top: 2px solid var(--bg-light);">
+                <h3 style="font-size: 1.5rem; margin-bottom: 1rem;">
+                    <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
+                    <?php _e('home.hotel_amenities'); ?>
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                    <?php foreach ($amenities as $amenity): ?>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary);">
+                        <i class="fas fa-check" style="color: var(--success-color);"></i>
+                        <span><?php echo htmlspecialchars($amenity); ?></span>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
     </section>
 
-    <!-- Amenities -->
-    <?php if (!empty($amenities)): ?>
-    <section class="container" style="margin: 3rem auto;">
-        <div style="background: white; padding: 3rem; border-radius: 12px; box-shadow: var(--shadow);">
-            <h2 style="font-size: 2rem; margin-bottom: 1.5rem;">
-                <i class="fas fa-concierge-bell" style="color: var(--primary-color);"></i>
-                สิ่งอำนวยความสะดวก
-            </h2>
-            <div class="amenities-list">
-                <?php foreach ($amenities as $amenity): ?>
-                <div class="amenity-item">
-                    <i class="fas fa-check"></i>
-                    <?php echo htmlspecialchars($amenity); ?>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-    </section>
-    <?php endif; ?>
-
-    <!-- Room Types -->
+    <!-- Available Rooms -->
     <section class="container" id="rooms" style="margin: 3rem auto;">
-        <h2 style="font-size: 2rem; margin-bottom: 1.5rem;">
-            <i class="fas fa-bed" style="color: var(--primary-color);"></i>
-            ห้องพักของเรา
+        <h2 style="font-size: 2.5rem; margin-bottom: 3rem; text-align: center; font-weight: 700;">
+            <i class="fas fa-door-open" style="color: var(--primary-color);"></i>
+            <?php _e('hotel.our_rooms'); ?>
         </h2>
         
-        <?php if (empty($roomTypes)): ?>
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i>
-                ขณะนี้ไม่มีห้องพักให้บริการ
-            </div>
-        <?php else: ?>
-            <div class="rooms-section">
+        <?php if (!empty($roomTypes)): ?>
+            <div style="display: flex; flex-direction: column; gap: 3rem;">
                 <?php 
-                $checkIn = $_GET['check_in'] ?? '';
-                $checkOut = $_GET['check_out'] ?? '';
-                $guests = $_GET['guests'] ?? 2;
-                
-                foreach ($roomTypes as $room): 
+                foreach ($roomTypes as $room):
                     $roomAmenities = parseJSON($room['amenities']);
-                    $roomImages = parseJSON($room['images']);
                 ?>
-                <div class="room-card">
-                    <div class="room-image" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">
-                        <i class="fas fa-bed" style="font-size: 3rem; color: white;"></i>
-                    </div>
+                <div style="background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 6px 25px rgba(0,0,0,0.1); transition: all 0.3s ease;" 
+                     onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 12px 35px rgba(0,0,0,0.15)';" 
+                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 25px rgba(0,0,0,0.1)';">
                     
-                    <div class="room-info">
-                        <h3><?php echo htmlspecialchars($room['room_name']); ?></h3>
-                        <p style="color: var(--text-secondary); margin: 0.5rem 0;">
-                            <?php echo htmlspecialchars($room['description']); ?>
-                        </p>
-                        
-                        <div class="room-features">
-                            <div class="room-feature">
-                                <i class="fas fa-ruler-combined"></i>
-                                <?php echo $room['size_sqm']; ?> ตร.ม.
-                            </div>
-                            <div class="room-feature">
-                                <i class="fas fa-users"></i>
-                                สูงสุด <?php echo $room['max_occupancy']; ?> คน
-                            </div>
-                            <div class="room-feature">
-                                <i class="fas fa-bed"></i>
-                                <?php echo htmlspecialchars($room['bed_type']); ?>
+                    <div style="display: grid; grid-template-columns: 400px 1fr; gap: 0; min-height: 350px;">
+                        <!-- Room Image Section -->
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
+                            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at 30% 50%, rgba(255,255,255,0.1) 0%, transparent 50%);"></div>
+                            <i class="fas fa-bed" style="font-size: 6rem; color: rgba(255,255,255,0.3); position: relative; z-index: 1;"></i>
+                            <div style="position: absolute; top: 1.5rem; left: 1.5rem; background: rgba(255,255,255,0.95); padding: 0.75rem 1.5rem; border-radius: 25px; font-weight: bold; color: var(--primary-color); box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                                <i class="fas fa-tag"></i> <?php echo htmlspecialchars($room['room_type_name']); ?>
                             </div>
                         </div>
                         
-                        <?php if (!empty($roomAmenities)): ?>
-                        <div style="margin-top: 1rem;">
-                            <strong style="color: var(--text-primary); font-size: 0.95rem;">สิ่งอำนวยความสะดวก:</strong>
-                            <div style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
-                                <?php 
-                                $displayAmenities = array_slice($roomAmenities, 0, 4);
-                                foreach ($displayAmenities as $amenity): 
-                                ?>
-                                <span style="display: inline-block; margin-right: 1rem; margin-bottom: 0.3rem;">
-                                    <i class="fas fa-check" style="color: var(--success-color);"></i>
-                                    <?php echo htmlspecialchars($amenity); ?>
-                                </span>
-                                <?php endforeach; ?>
-                                <?php if (count($roomAmenities) > 4): ?>
-                                <span style="color: var(--primary-color);">และอื่นๆ</span>
+                        <!-- Room Details Section -->
+                        <div style="padding: 3rem; display: flex; flex-direction: column; justify-content: space-between;">
+                            <div>
+                                <h3 style="font-size: 2.2rem; color: var(--text-primary); margin-bottom: 1.5rem; font-weight: 700;">
+                                    <?php echo htmlspecialchars($room['room_type_name']); ?>
+                                </h3>
+                                
+                                <p style="color: var(--text-secondary); margin-bottom: 2rem; line-height: 1.8; font-size: 1.1rem;">
+                                    <?php echo htmlspecialchars($room['description']); ?>
+                                </p>
+                                
+                                <!-- Room Features Grid -->
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);">
+                                            <i class="fas fa-ruler-combined" style="color: white; font-size: 1.3rem;"></i>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 0.9rem; color: var(--text-secondary);">ขนาดห้อง</div>
+                                            <div style="font-weight: 700; color: var(--text-primary); font-size: 1.1rem;"><?php echo $room['size_sqm']; ?> ตร.ม.</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);">
+                                            <i class="fas fa-users" style="color: white; font-size: 1.3rem;"></i>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 0.9rem; color: var(--text-secondary);">จำนวนผู้เข้าพัก</div>
+                                            <div style="font-weight: 700; color: var(--text-primary); font-size: 1.1rem;">สูงสุด <?php echo $room['max_occupancy']; ?> คน</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);">
+                                            <i class="fas fa-bed" style="color: white; font-size: 1.3rem;"></i>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 0.9rem; color: var(--text-secondary);">ประเภทเตียง</div>
+                                            <div style="font-weight: 700; color: var(--text-primary); font-size: 1.1rem;"><?php echo htmlspecialchars($room['bed_type']); ?></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Amenities -->
+                                <?php if (!empty($roomAmenities)): ?>
+                                <div>
+                                    <h4 style="font-size: 1.2rem; color: var(--text-primary); margin-bottom: 1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+                                        <i class="fas fa-star" style="color: var(--secondary-color);"></i>
+                                        <span>สิ่งอำนวยความสะดวก</span>
+                                    </h4>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+                                        <?php 
+                                        $displayAmenities = array_slice($roomAmenities, 0, 6);
+                                        foreach ($displayAmenities as $amenity): 
+                                        ?>
+                                        <span style="background: var(--bg-light); padding: 0.6rem 1.2rem; border-radius: 25px; font-size: 0.95rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;"
+                                              onmouseover="this.style.background='linear-gradient(135deg, #667eea 0%, #764ba2 100%)'; this.style.color='white';"
+                                              onmouseout="this.style.background='var(--bg-light)'; this.style.color='var(--text-secondary)';">
+                                            <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
+                                            <?php echo htmlspecialchars($amenity); ?>
+                                        </span>
+                                        <?php endforeach; ?>
+                                        <?php if (count($roomAmenities) > 6): ?>
+                                        <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.6rem 1.2rem; border-radius: 25px; font-size: 0.95rem; font-weight: 600; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);">
+                                            +<?php echo count($roomAmenities) - 6; ?> เพิ่มเติม
+                                        </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
                                 <?php endif; ?>
                             </div>
+                            
+                            <!-- Bottom Action Bar -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 2rem; margin-top: 2rem; border-top: 2px solid var(--bg-light);">
+                                <div>
+                                    <div style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                        <i class="fas fa-info-circle" style="color: var(--primary-color);"></i>
+                                        <span>คลิกเพื่อดูรายละเอียดเพิ่มเติม</span>
+                                    </div>
+                                    <div style="font-size: 0.9rem; color: var(--text-secondary);">
+                                        ราคา พร้อมจองห้อง และดูตัวเลือกห้องพักเพิ่มเติม
+                                    </div>
+                                </div>
+                                
+                                <a href="room_detail.php?room_type_id=<?php echo $room['room_type_id']; ?>" 
+                                   class="btn btn-primary" 
+                                   style="padding: 1.2rem 3rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.75rem; font-size: 1.15rem; font-weight: 700; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); transition: all 0.3s; border-radius: 30px;"
+                                   onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 25px rgba(102, 126, 234, 0.6)';"
+                                   onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
+                                    <span>ดูรายละเอียด</span>
+                                    <i class="fas fa-arrow-right"></i>
+                                </a>
+                            </div>
                         </div>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <div class="room-booking">
-                        <div class="room-price">
-                            <?php echo formatPrice($room['base_price']); ?>
-                            <span class="price-unit">/คืน</span>
-                        </div>
-                        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
-                            รวมภาษีและค่าบริการ
-                        </p>
-                        
-                        <?php if (isLoggedIn()): ?>
-                            <a href="booking.php?hotel_id=<?php echo HOTEL_ID; ?>&room_type_id=<?php echo $room['room_type_id']; ?>&check_in=<?php echo urlencode($checkIn); ?>&check_out=<?php echo urlencode($checkOut); ?>&guests=<?php echo $guests; ?>" 
-                               class="btn btn-primary" style="width: 100%;">
-                                <i class="fas fa-calendar-check"></i> จองเลย
-                            </a>
-                        <?php else: ?>
-                            <a href="login.php?redirect=index.php" 
-                               class="btn btn-primary" style="width: 100%;">
-                                <i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบเพื่อจอง
-                            </a>
-                        <?php endif; ?>
-                        
-                        <?php if ($room['total_rooms'] <= 5): ?>
-                        <p style="color: var(--danger-color); font-size: 0.85rem; margin-top: 0.5rem; text-align: center;">
-                            <i class="fas fa-exclamation-circle"></i>
-                            เหลือเพียง <?php echo $room['total_rooms']; ?> ห้อง!
-                        </p>
-                        <?php endif; ?>
                     </div>
                 </div>
                 <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <div style="text-align: center; padding: 5rem 2rem; background: white; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                <i class="fas fa-bed" style="font-size: 5rem; color: var(--text-secondary); opacity: 0.3; margin-bottom: 1.5rem;"></i>
+                <p style="color: var(--text-secondary); font-size: 1.3rem; font-weight: 500;">
+                    <?php _e('hotel.no_rooms'); ?>
+                </p>
             </div>
         <?php endif; ?>
     </section>
 
-    <!-- Reviews -->
+    <!-- Reviews Section -->
     <?php if (!empty($reviews)): ?>
     <section class="container" id="reviews" style="margin: 3rem auto;">
-        <div style="background: white; padding: 3rem; border-radius: 12px; box-shadow: var(--shadow);">
-            <h2 style="font-size: 2rem; margin-bottom: 1.5rem;">
-                <i class="fas fa-star" style="color: var(--secondary-color);"></i>
-                รีวิวจากผู้เข้าพัก
-            </h2>
-            
-            <?php if ($hotel['avg_rating']): ?>
-            <div style="background: var(--bg-light); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; text-align: center;">
-                <div style="font-size: 3rem; font-weight: bold; color: var(--primary-color);">
-                    <?php echo number_format($hotel['avg_rating'], 1); ?>/5.0
-                </div>
-                <div style="margin: 0.5rem 0;">
-                    <?php echo generateStarRating($hotel['avg_rating']); ?>
-                </div>
-                <div style="color: var(--text-secondary);">
-                    จาก <?php echo $hotel['review_count']; ?> รีวิว
-                </div>
-            </div>
-            <?php endif; ?>
-            
+        <h2 style="font-size: 2rem; margin-bottom: 2rem; text-align: center;">
+            <i class="fas fa-comments" style="color: var(--primary-color);"></i>
+            <?php _e('home.customer_reviews'); ?>
+        </h2>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
             <?php foreach ($reviews as $review): ?>
-            <div style="padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid var(--border-color);">
-                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
-                    <div style="display: flex; gap: 1rem; align-items: center;">
-                        <img src="<?php echo getUserAvatar($review['email']); ?>" 
-                             alt="<?php echo htmlspecialchars($review['first_name']); ?>"
-                             style="width: 50px; height: 50px; border-radius: 50%;">
-                        <div>
-                            <div style="font-weight: 600;">
-                                <?php echo htmlspecialchars($review['first_name'] . ' ' . substr($review['last_name'], 0, 1)); ?>.
-                            </div>
-                            <div style="color: var(--text-secondary); font-size: 0.85rem;">
-                                <?php echo formatDate($review['created_at']); ?>
-                            </div>
+            <div style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                    <img src="<?php echo getUserAvatar($review['email']); ?>" 
+                         alt="<?php echo htmlspecialchars($review['first_name']); ?>"
+                         style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;"
+                         onerror="this.src='assets/images/default-avatar.png'">
+                    <div>
+                        <div style="font-weight: bold; color: var(--text-primary);">
+                            <?php echo htmlspecialchars($review['first_name'] . ' ' . substr($review['last_name'], 0, 1)); ?>.
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                            <?php echo formatDateByLang($review['created_at']); ?>
                         </div>
                     </div>
-                    <?php echo generateStarRating($review['rating']); ?>
+                    <div style="margin-left: auto;">
+                        <?php echo generateStarRating($review['rating']); ?>
+                    </div>
                 </div>
                 
                 <?php if ($review['title']): ?>
-                <h4 style="margin-bottom: 0.5rem;"><?php echo htmlspecialchars($review['title']); ?></h4>
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">
+                        <?php echo htmlspecialchars($review['title']); ?>
+                    </h4>
                 <?php endif; ?>
                 
                 <p style="color: var(--text-secondary); line-height: 1.6;">
@@ -369,45 +335,4 @@ $images = parseJSON($hotel['images']);
     </section>
     <?php endif; ?>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div>
-                    <h4>เกี่ยวกับเรา</h4>
-                    <a href="#">เกี่ยวกับบริษัท</a>
-                    <a href="#">ร่วมงานกับเรา</a>
-                    <a href="#">ติดต่อเรา</a>
-                </div>
-                
-                <div>
-                    <h4>สำหรับธุรกิจ</h4>
-                    <a href="#">ลงทะเบียนโรงแรม</a>
-                    <a href="#">Extranet</a>
-                    <a href="#">โฆษณากับเรา</a>
-                </div>
-                
-                <div>
-                    <h4>ช่วยเหลือ</h4>
-                    <a href="#">คำถามที่พบบ่อย</a>
-                    <a href="#">นโยบายการยกเลิก</a>
-                    <a href="#">เงื่อนไขการใช้บริการ</a>
-                </div>
-                
-                <div>
-                    <h4>ติดตามเรา</h4>
-                    <a href="#"><i class="fab fa-facebook"></i> Facebook</a>
-                    <a href="#"><i class="fab fa-instagram"></i> Instagram</a>
-                    <a href="#"><i class="fab fa-line"></i> Line</a>
-                </div>
-            </div>
-            
-            <div class="footer-bottom">
-                <p>&copy; 2024 Hotel Booking System. All rights reserved.</p>
-            </div>
-        </div>
-    </footer>
-
-    <script src="js/main.js"></script>
-</body>
-</html>
+<?php include './includes/footer.php'; ?>

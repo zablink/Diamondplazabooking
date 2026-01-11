@@ -1,12 +1,24 @@
 <?php
-require_once '../config/config.php';
-require_once '../includes/Database.php';
-require_once '../includes/helpers.php';
-require_once '../modules/booking/Booking.php';
+//// init for SESSION , PROJECT_PATH , etc..
+// Auto-find project root
+$projectRoot = __DIR__;
+while (!file_exists($projectRoot . '/includes/init.php')) {
+    $parent = dirname($projectRoot);
+    if ($parent === $projectRoot) {
+        die('Error: Cannot find project root');
+    }
+    $projectRoot = $parent;
+}
+require_once $projectRoot . '/includes/init.php';
+
+require_once PROJECT_ROOT . '/config/config.php';
+require_once PROJECT_ROOT . '/includes/Database.php';
+require_once PROJECT_ROOT . '/includes/helpers.php';
+require_once PROJECT_ROOT . '/modules/booking/Booking.php';
 
 // Check if user is logged in
 if (!isLoggedIn()) {
-    redirect('/public/login.php');
+    redirect( PROJECT_ROOT . '/login.php');
 }
 
 $bookingObj = new Booking();
@@ -26,7 +38,7 @@ if (isset($_POST['cancel_booking'])) {
         setFlashMessage($result['message'], 'error');
     }
     
-    redirect('/public/my_bookings.php');
+    redirect( PROJECT_ROOT . '/my_bookings.php');
 }
 
 $flashMessage = getFlashMessage();
@@ -100,7 +112,7 @@ $flashMessage = getFlashMessage();
                         </p>
                         <p style="color: var(--text-secondary); margin-bottom: 0.5rem;">
                             <i class="fas fa-door-open"></i>
-                            <?php echo htmlspecialchars($booking['room_name']); ?>
+                            <?php echo htmlspecialchars($booking['room_type_name']); ?>
                         </p>
                         
                         <div class="booking-info-row">

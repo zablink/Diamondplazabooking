@@ -8,8 +8,8 @@ class SocialAuth {
     private $db;
     
     public function __construct() {
-        $database = new Database();
-        $this->db = $database->getConnection();
+        // ใช้ Singleton Pattern แทน new Database()
+        $this->db = Database::getInstance()->getConnection();
     }
     
     /**
@@ -47,42 +47,78 @@ class SocialAuth {
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($tokenData));
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
             $response = curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
+            
+            if ($http_code != 200) {
+                error_log("Google token exchange failed - HTTP Code: $http_code");
+                return ['success' => false, 'message' => 'Failed to get access token'];
+            }
             
             $tokenResponse = json_decode($response, true);
             
             if (!isset($tokenResponse['access_token'])) {
+                error_log("Access token not found in Google response");
                 return ['success' => false, 'message' => 'Failed to get access token'];
             }
+            
+            // ⭐ เก็บตัวแปรสำคัญสำหรับ return
+            $access_token = $tokenResponse['access_token'];
+            $expires_in = $tokenResponse['expires_in'] ?? 3600;
+            $expires_at = time() + $expires_in;
             
             // Get user info
             $userInfoUrl = 'https://www.googleapis.com/oauth2/v2/userinfo';
             $ch = curl_init($userInfoUrl);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Authorization: Bearer ' . $tokenResponse['access_token']
+                'Authorization: Bearer ' . $access_token
             ]);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
             $userInfoResponse = curl_exec($ch);
+            $userinfo_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
+            
+            if ($userinfo_code != 200) {
+                error_log("Failed to get Google user info - HTTP Code: $userinfo_code");
+                return ['success' => false, 'message' => 'Failed to get user info'];
+            }
             
             $userInfo = json_decode($userInfoResponse, true);
             
             if (!isset($userInfo['id'])) {
+                error_log("User ID not found in Google response");
                 return ['success' => false, 'message' => 'Failed to get user info'];
             }
             
+            // ⭐ เก็บ google_id
+            $google_id = $userInfo['id'];
+            
             // Login or register user
-            return $this->socialLoginOrRegister(
+            $result = $this->socialLoginOrRegister(
                 'google',
-                $userInfo['id'],
+                $google_id,
                 $userInfo['email'],
                 $userInfo['given_name'] ?? 'User',
                 $userInfo['family_name'] ?? '',
                 $userInfo['picture'] ?? null
             );
             
+            // ⭐⭐⭐ สำคัญมาก! เพิ่ม access_token, google_id, expires_at ใน return value
+            if ($result['success']) {
+                $result['access_token'] = $access_token;
+                $result['google_id'] = $google_id;
+                $result['expires_at'] = $expires_at;
+            }
+            
+            return $result;
+            
         } catch (Exception $e) {
+            error_log("Google login error: " . $e->getMessage());
             return ['success' => false, 'message' => 'Google login error: ' . $e->getMessage()];
         }
     }
@@ -127,44 +163,80 @@ class SocialAuth {
             
             $ch = curl_init($tokenUrl . '?' . http_build_query($tokenParams));
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
             $response = curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
+            
+            if ($http_code != 200) {
+                error_log("Facebook token exchange failed - HTTP Code: $http_code");
+                return ['success' => false, 'message' => 'Failed to get access token'];
+            }
             
             $tokenResponse = json_decode($response, true);
             
             if (!isset($tokenResponse['access_token'])) {
+                error_log("Access token not found in Facebook response");
                 return ['success' => false, 'message' => 'Failed to get access token'];
             }
+            
+            // ⭐ เก็บตัวแปรสำคัญสำหรับ return
+            $access_token = $tokenResponse['access_token'];
+            $expires_in = $tokenResponse['expires_in'] ?? 3600;
+            $expires_at = time() + $expires_in;
             
             // Get user info
             $userInfoUrl = 'https://graph.facebook.com/me';
             $userInfoParams = [
                 'fields' => 'id,email,first_name,last_name,picture.type(large)',
-                'access_token' => $tokenResponse['access_token']
+                'access_token' => $access_token
             ];
             
             $ch = curl_init($userInfoUrl . '?' . http_build_query($userInfoParams));
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
             $userInfoResponse = curl_exec($ch);
+            $userinfo_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
+            
+            if ($userinfo_code != 200) {
+                error_log("Failed to get Facebook user info - HTTP Code: $userinfo_code");
+                return ['success' => false, 'message' => 'Failed to get user info'];
+            }
             
             $userInfo = json_decode($userInfoResponse, true);
             
             if (!isset($userInfo['id'])) {
+                error_log("User ID not found in Facebook response");
                 return ['success' => false, 'message' => 'Failed to get user info'];
             }
             
+            // ⭐ เก็บ facebook_id
+            $facebook_id = $userInfo['id'];
+            
             // Login or register user
-            return $this->socialLoginOrRegister(
+            $result = $this->socialLoginOrRegister(
                 'facebook',
-                $userInfo['id'],
+                $facebook_id,
                 $userInfo['email'] ?? null,
                 $userInfo['first_name'] ?? 'User',
                 $userInfo['last_name'] ?? '',
                 $userInfo['picture']['data']['url'] ?? null
             );
             
+            // ⭐⭐⭐ สำคัญมาก! เพิ่ม access_token, facebook_id, expires_at ใน return value
+            if ($result['success']) {
+                $result['access_token'] = $access_token;
+                $result['facebook_id'] = $facebook_id;
+                $result['expires_at'] = $expires_at;
+            }
+            
+            return $result;
+            
         } catch (Exception $e) {
+            error_log("Facebook login error: " . $e->getMessage());
             return ['success' => false, 'message' => 'Facebook login error: ' . $e->getMessage()];
         }
     }
@@ -175,7 +247,7 @@ class SocialAuth {
     private function socialLoginOrRegister($provider, $socialId, $email, $firstName, $lastName, $profilePicture) {
         try {
             // Check if user exists with this social account
-            $sql = "SELECT * FROM users WHERE auth_provider = :provider AND social_id = :social_id";
+            $sql = "SELECT * FROM bk_users WHERE auth_provider = :provider AND social_id = :social_id";
             $stmt = $this->db->prepare($sql);
             $stmt->execute([
                 'provider' => $provider,
@@ -188,7 +260,7 @@ class SocialAuth {
             if ($user) {
                 // Update profile picture if changed
                 if ($profilePicture && $user['profile_picture'] !== $profilePicture) {
-                    $updateSql = "UPDATE users SET profile_picture = :picture WHERE user_id = :user_id";
+                    $updateSql = "UPDATE bk_users SET profile_picture = :picture WHERE user_id = :user_id";
                     $updateStmt = $this->db->prepare($updateSql);
                     $updateStmt->execute([
                         'picture' => $profilePicture,
@@ -209,14 +281,14 @@ class SocialAuth {
             
             // Check if email already exists (linked to another account)
             if ($email) {
-                $emailSql = "SELECT * FROM users WHERE email = :email";
+                $emailSql = "SELECT * FROM bk_users WHERE email = :email";
                 $emailStmt = $this->db->prepare($emailSql);
                 $emailStmt->execute(['email' => $email]);
                 $existingUser = $emailStmt->fetch();
                 
                 if ($existingUser) {
                     // Link social account to existing user
-                    $linkSql = "UPDATE users 
+                    $linkSql = "UPDATE bk_users 
                                 SET auth_provider = :provider, 
                                     social_id = :social_id, 
                                     profile_picture = :picture,
@@ -248,7 +320,7 @@ class SocialAuth {
                 $email = $provider . '_' . $socialId . '@social.local';
             }
             
-            $insertSql = "INSERT INTO users 
+            $insertSql = "INSERT INTO bk_users 
                          (email, first_name, last_name, auth_provider, social_id, profile_picture, email_verified) 
                          VALUES 
                          (:email, :first_name, :last_name, :provider, :social_id, :picture, TRUE)";

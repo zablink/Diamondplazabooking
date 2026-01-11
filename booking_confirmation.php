@@ -1,20 +1,33 @@
 <?php
-require_once '../config/config.php';
-require_once '../includes/Database.php';
-require_once '../includes/helpers.php';
-require_once '../modules/booking/Booking.php';
+//// init for SESSION , PROJECT_PATH , etc..
+// Auto-find project root
+$projectRoot = __DIR__;
+while (!file_exists($projectRoot . '/includes/init.php')) {
+    $parent = dirname($projectRoot);
+    if ($parent === $projectRoot) {
+        die('Error: Cannot find project root');
+    }
+    $projectRoot = $parent;
+}
+require_once $projectRoot . '/includes/init.php';
+
+
+require_once PROJECT_ROOT . '/config/config.php';
+require_once PROJECT_ROOT . '/includes/Database.php';
+require_once PROJECT_ROOT . '/includes/helpers.php';
+require_once PROJECT_ROOT . '/modules/booking/Booking.php';
 
 $bookingObj = new Booking();
 $bookingRef = $_GET['ref'] ?? '';
 
 if (!$bookingRef) {
-    redirect('/public/index.php');
+    redirect( PROJECT_ROOT . '/index.php');
 }
 
 $booking = $bookingObj->getBookingByReference($bookingRef);
 
 if (!$booking) {
-    redirect('/public/index.php');
+    redirect( PROJECT_ROOT . '/index.php');
 }
 
 $nights = calculateNights($booking['check_in'], $booking['check_out']);
@@ -137,7 +150,7 @@ $nights = calculateNights($booking['check_in'], $booking['check_out']);
                 <h3 style="margin-bottom: 1rem;">ข้อมูลห้องพัก</h3>
                 <div class="info-row">
                     <span class="info-label">ประเภทห้อง</span>
-                    <span class="info-value"><?php echo htmlspecialchars($booking['room_name']); ?></span>
+                    <span class="info-value"><?php echo htmlspecialchars($booking['room_type_name']); ?></span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">เตียง</span>

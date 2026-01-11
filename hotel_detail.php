@@ -1,8 +1,20 @@
 <?php
-require_once '../config/config.php';
-require_once '../includes/Database.php';
-require_once '../includes/helpers.php';
-require_once '../modules/hotel/Hotel.php';
+//// init for SESSION , PROJECT_PATH , etc..
+// Auto-find project root
+$projectRoot = __DIR__;
+while (!file_exists($projectRoot . '/includes/init.php')) {
+    $parent = dirname($projectRoot);
+    if ($parent === $projectRoot) {
+        die('Error: Cannot find project root');
+    }
+    $projectRoot = $parent;
+}
+require_once $projectRoot . '/includes/init.php';
+
+require_once PROJECT_ROOT . '/config/config.php';
+require_once PROJECT_ROOT . '/includes/Database.php';
+require_once PROJECT_ROOT . '/includes/helpers.php';
+require_once PROJECT_ROOT . '/modules/hotel/Hotel.php';
 
 $hotelObj = new Hotel();
 
@@ -12,12 +24,12 @@ $checkOut = $_GET['check_out'] ?? '';
 $guests = $_GET['guests'] ?? 2;
 
 if (!$hotelId) {
-    redirect('/public/index.php');
+    redirect(PROJECT_ROOT . '/index.php');
 }
 
 $hotel = $hotelObj->getHotelById($hotelId);
 if (!$hotel) {
-    redirect('/public/index.php');
+    redirect(PROJECT_ROOT . '/index.php');
 }
 
 $roomTypes = $hotelObj->getRoomTypes($hotelId);
@@ -172,7 +184,7 @@ $amenities = parseJSON($hotel['amenities']);
                     </div>
                     
                     <div class="room-info">
-                        <h3><?php echo htmlspecialchars($room['room_name']); ?></h3>
+                        <h3><?php echo htmlspecialchars($room['room_type_name']); ?></h3>
                         <p style="color: var(--text-secondary); margin: 0.5rem 0;">
                             <?php echo htmlspecialchars($room['description']); ?>
                         </p>
