@@ -221,7 +221,11 @@ class Language {
      * ตั้งค่าภาษา
      */
     public function setLanguage($lang) {
-        if (in_array($lang, ['th', 'en'])) {
+        // รองรับภาษาจีนแล้ว
+        if (preg_match('/^zh/i', $lang)) {
+            $lang = 'zh';
+        }
+        if (in_array($lang, ['th', 'en', 'zh'])) {
             $this->currentLang = $lang;
             $_SESSION['lang'] = $lang;
         }

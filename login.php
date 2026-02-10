@@ -98,7 +98,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute(['email' => $email]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            if ($user && password_verify($password, $user['password'])) {
+            // Check if user exists
+            if (!$user) {
+                $error = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+                error_log("❌ User not found for email: " . $email);
+            } elseif (empty($user['password'])) {
+                // User registered with social login, no password set
+                $error = 'บัญชีนี้สมัครด้วย Social Login กรุณาใช้ Google หรือ Facebook เพื่อเข้าสู่ระบบ';
+                error_log("❌ User registered with social login: " . $email);
+            } elseif (!password_verify($password, $user['password'])) {
+                $error = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+                error_log("❌ Invalid password for email: " . $email);
+            } else {
                 error_log("✓ Password verified for user: " . $user['user_id']);
                 
                 // เก็บข้อมูลใน session
@@ -126,9 +137,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     error_log("→ Redirecting to index.php");
                     safeRedirect('index.php');
                 }
-            } else {
-                $error = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
-                error_log("❌ Invalid credentials for email: " . $email);
             }
         } catch (PDOException $e) {
             $error = 'เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้ง';

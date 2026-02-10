@@ -653,3 +653,7 @@ body {
     color: white;
     border-color: var(--primary-color);
 }
+
+.white-text{
+    color: #FFFFFF;
+}

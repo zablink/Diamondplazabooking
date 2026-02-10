@@ -27,7 +27,7 @@ $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 
 // Search hotels
 $hotels = $hotel->searchHotels($city, $checkIn, $checkOut, $guests, $page);
-$totalHotels = $hotel->getTotalHotels($city);
+$totalHotels = $hotel->getTotalHotels($city, $checkIn, $checkOut, $guests);
 $totalPages = ceil($totalHotels / ITEMS_PER_PAGE);
 ?>
 <!DOCTYPE html>

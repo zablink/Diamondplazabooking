@@ -24,7 +24,7 @@ require_once PROJECT_ROOT .  '/modules/auth/SocialAuth.php';
 // Check if code is present
 if (!isset($_GET['code'])) {
     setFlashMessage('การเข้าสู่ระบบด้วย Google ล้มเหลว', 'error');
-    redirect(PROJECT_ROOT . '/login.php');
+    redirect('login.php');
 }
 
 $socialAuth = new SocialAuth();
@@ -56,11 +56,10 @@ if ($result['success']) {
     setFlashMessage('เข้าสู่ระบบด้วย Google สำเร็จ!', 'success');
     
     // Redirect to original page or home
-    $redirect = $_SESSION['redirect_after_login'] ?? '/booking/index.php';
+    $redirect = $_SESSION['redirect_after_login'] ?? 'index.php';
     unset($_SESSION['redirect_after_login']);
-    $redirect = str_replace('/booking', 'booking', $redirect);
     redirect($redirect);
 } else {
     setFlashMessage($result['message'], 'error');
-    redirect( PROJECT_ROOT . '/login.php');
+    redirect('login.php');
 }

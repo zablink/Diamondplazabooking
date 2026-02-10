@@ -41,8 +41,22 @@ require_once PROJECT_ROOT . '/includes/Language.php';
 $lang = Language::getInstance();
 
 // Set language from GET parameter if provided
-if (isset($_GET['lang']) && in_array($_GET['lang'], ['th', 'en'])) {
-    $lang->setLanguage($_GET['lang']);
+// รองรับ parameter จาก polylang: lang, pll_lang
+$langParam = $_GET['lang'] ?? $_GET['pll_lang'] ?? null;
+if ($langParam) {
+    // รองรับภาษาจีนแล้ว
+    if (preg_match('/^zh/i', $langParam)) {
+        $langParam = 'zh';
+    }
+    if (in_array($langParam, ['th', 'en', 'zh'])) {
+        $lang->setLanguage($langParam);
+    }
+}
+
+// Load lang.php for url() function and other language helpers
+// This must be loaded before helpers.php to avoid function redeclaration
+if (!function_exists('url')) {
+    require_once PROJECT_ROOT . '/includes/lang.php';
 }
 
 // Set timezone

@@ -19,7 +19,7 @@ require_once PROJECT_ROOT . '/modules/auth/SocialAuth.php';
 
 // If already logged in, redirect to home
 if (isLoggedIn()) {
-    redirect(PROJECT_ROOT . '/index.php');
+    redirect('index.php');
 }
 
 $auth = new Auth();
@@ -28,24 +28,58 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = sanitize($_POST['email']);
-    $password = $_POST['password'];
-    $confirmPassword = $_POST['confirm_password'];
-    $firstName = sanitize($_POST['first_name']);
-    $lastName = sanitize($_POST['last_name']);
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    $confirmPassword = $_POST['confirm_password'] ?? '';
+    $firstName = sanitize($_POST['first_name'] ?? '');
+    $lastName = sanitize($_POST['last_name'] ?? '');
     $phone = sanitize($_POST['phone'] ?? '');
     
-    // Validate passwords match
-    if ($password !== $confirmPassword) {
-        $error = 'รหัสผ่านไม่ตรงกัน';
+    // Validate required fields
+    if (empty($email)) {
+        $error = 'กรุณากรอกอีเมล';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = 'รูปแบบอีเมลไม่ถูกต้อง';
+    } elseif (empty($firstName)) {
+        $error = 'กรุณากรอกชื่อ';
+    } elseif (empty($lastName)) {
+        $error = 'กรุณากรอกนามสกุล';
+    } elseif (empty($password)) {
+        $error = 'กรุณากรอกรหัสผ่าน';
     } elseif (strlen($password) < 6) {
         $error = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+    } elseif ($password !== $confirmPassword) {
+        $error = 'รหัสผ่านไม่ตรงกัน';
     } else {
         $result = $auth->register($email, $password, $firstName, $lastName, $phone);
         
         if ($result['success']) {
-            setFlashMessage('สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ', 'success');
-            redirect(PROJECT_ROOT . '/login.php');
+            // Auto-login after successful registration
+            // Get the newly registered user data
+            $db = Database::getInstance();
+            $conn = $db->getConnection();
+            $sql = "SELECT * FROM bk_users WHERE email = :email";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute(['email' => $email]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($user) {
+                // Set session variables (auto-login)
+                $_SESSION['user_id'] = $user['user_id'];
+                $_SESSION['email'] = $user['email'];
+                $_SESSION['first_name'] = $user['first_name'];
+                $_SESSION['last_name'] = $user['last_name'];
+                $_SESSION['role'] = $user['role'] ?? 'customer';
+                $_SESSION['login_method'] = 'email';
+                
+                setFlashMessage('สมัครสมาชิกสำเร็จ! ยินดีต้อนรับ', 'success');
+                // Redirect to index page instead of login (use relative path for proper URL)
+                redirect('index.php');
+            } else {
+                // Fallback: if user not found, redirect to login
+                setFlashMessage('สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ', 'success');
+                redirect('login.php');
+            }
         } else {
             $error = $result['message'];
         }

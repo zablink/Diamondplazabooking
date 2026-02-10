@@ -66,18 +66,48 @@ class PriceCalculator {
                 // หาราคาสำหรับวันนี้
                 $dailyPrice = $this->getPriceForDate($roomTypeId, $dateStr, $roomInfo);
                 
-                // เพิ่มค่าอาหารเช้า (ถ้าไม่รวมในราคาห้อง และลูกค้าต้องการ)
+                // ตรวจสอบว่ามี daily rate with breakfast หรือไม่
                 $breakfastCost = 0;
-                if (!$roomInfo['breakfast_included'] && $includeBreakfast) {
-                    $breakfastCost = $roomInfo['breakfast_price'];
-                    $dailyPrice += $breakfastCost;
+                $dailyPriceWithBreakfast = null;
+                $adjustedPrice = $dailyPrice; // เก็บราคา room only ไว้
+                
+                try {
+                    $checkCol = $this->conn->query("SHOW COLUMNS FROM bk_room_inventory LIKE 'price_with_breakfast'");
+                    if ($checkCol->rowCount() > 0) {
+                        $sql = "SELECT price_with_breakfast FROM bk_room_inventory 
+                                WHERE room_type_id = :room_type_id AND date = :date LIMIT 1";
+                        $stmt = $this->conn->prepare($sql);
+                        $stmt->execute([
+                            'room_type_id' => $roomTypeId,
+                            'date' => $dateStr
+                        ]);
+                        $dailyBreakfast = $stmt->fetch(PDO::FETCH_ASSOC);
+                        if ($dailyBreakfast && !empty($dailyBreakfast['price_with_breakfast'])) {
+                            $dailyPriceWithBreakfast = floatval($dailyBreakfast['price_with_breakfast']);
+                        }
+                    }
+                } catch (Exception $e) {
+                    // Ignore if column doesn't exist
+                }
+                
+                // ถ้าต้องการอาหารเช้า
+                if ($includeBreakfast) {
+                    if ($dailyPriceWithBreakfast !== null) {
+                        // ใช้ราคารวมอาหารเช้าจาก daily rate
+                        $breakfastCost = $dailyPriceWithBreakfast - $adjustedPrice;
+                        $dailyPrice = $dailyPriceWithBreakfast;
+                    } elseif (!$roomInfo['breakfast_included']) {
+                        // ใช้ราคาอาหารเช้าจาก room type
+                        $breakfastCost = $roomInfo['breakfast_price'];
+                        $dailyPrice += $breakfastCost;
+                    }
                 }
                 
                 $dailyBreakdown[] = [
                     'date' => $dateStr,
                     'day_name' => $currentDate->format('l'),
                     'base_price' => $roomInfo['base_price'],
-                    'adjusted_price' => $dailyPrice - $breakfastCost,
+                    'adjusted_price' => $adjustedPrice,
                     'breakfast_cost' => $breakfastCost,
                     'total' => $dailyPrice,
                     'season' => $this->getSeasonForDate($roomTypeId, $dateStr)
@@ -116,7 +146,7 @@ class PriceCalculator {
         $sql = "SELECT room_type_id, room_type_name, base_price, 
                        breakfast_included, breakfast_price
                 FROM bk_room_types 
-                WHERE room_type_id = :room_type_id AND status = 'active'";
+                WHERE room_type_id = :room_type_id AND status = 'available'";
         
         $stmt = $this->conn->prepare($sql);
         $stmt->execute(['room_type_id' => $roomTypeId]);
@@ -125,18 +155,70 @@ class PriceCalculator {
     
     /**
      * คำนวณราคาสำหรับวันที่ระบุ
+     * Priority: 1. Daily Rate (bk_room_inventory) > 2. Seasonal Rate > 3. Base Price
      */
     private function getPriceForDate($roomTypeId, $date, $roomInfo) {
         $basePrice = $roomInfo['base_price'];
         
-        // หา seasonal price ที่มี priority สูงสุด
-        $sql = "SELECT season_name, price_modifier_type, price_modifier_value, priority
-                FROM bk_seasonal_prices
-                WHERE room_type_id = :room_type_id
-                  AND :date BETWEEN start_date AND end_date
-                  AND is_active = TRUE
-                ORDER BY priority DESC
+        // ตรวจสอบว่ามีคอลัมน์ price_with_breakfast หรือไม่
+        try {
+            $checkCol = $this->conn->query("SHOW COLUMNS FROM bk_room_inventory LIKE 'price_with_breakfast'");
+            $hasBreakfastPrice = $checkCol->rowCount() > 0;
+        } catch (Exception $e) {
+            $hasBreakfastPrice = false;
+        }
+        
+        // 1. ตรวจสอบ daily rate จาก bk_room_inventory ก่อน (Priority สูงสุด)
+        $sql = "SELECT price, " . ($hasBreakfastPrice ? "price_with_breakfast, " : "") . "available_rooms
+                FROM bk_room_inventory
+                WHERE room_type_id = :room_type_id AND date = :date
                 LIMIT 1";
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([
+            'room_type_id' => $roomTypeId,
+            'date' => $date
+        ]);
+        
+        $dailyRate = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($dailyRate && !empty($dailyRate['price'])) {
+            // ใช้ราคาจาก daily rate
+            return floatval($dailyRate['price']);
+        }
+        
+        // 2. ตรวจสอบว่ามีคอลัมน์ price_modifier_type และ price_modifier_value หรือไม่
+        $hasPriceModifierColumns = false;
+        try {
+            $checkCol1 = $this->conn->query("SHOW COLUMNS FROM bk_seasonal_rates LIKE 'price_modifier_type'");
+            $checkCol2 = $this->conn->query("SHOW COLUMNS FROM bk_seasonal_rates LIKE 'price_modifier_value'");
+            if ($checkCol1->rowCount() > 0 && $checkCol2->rowCount() > 0) {
+                $hasPriceModifierColumns = true;
+            }
+        } catch (Exception $e) {
+            $hasPriceModifierColumns = false;
+        }
+        
+        // 3. ถ้าไม่มี daily rate ให้หา seasonal price ที่มี priority สูงสุด
+        if ($hasPriceModifierColumns) {
+            // ใช้คอลัมน์ใหม่ price_modifier_type และ price_modifier_value
+            $sql = "SELECT season_name, price_modifier_type, price_modifier_value, priority
+                    FROM bk_seasonal_rates
+                    WHERE room_type_id = :room_type_id
+                      AND :date BETWEEN start_date AND end_date
+                      AND is_active = TRUE
+                    ORDER BY priority DESC
+                    LIMIT 1";
+        } else {
+            // ใช้คอลัมน์เก่า rate_multiplier และ base_rate_override
+            $sql = "SELECT season_name, rate_multiplier, base_rate_override, priority
+                    FROM bk_seasonal_rates
+                    WHERE room_type_id = :room_type_id
+                      AND :date BETWEEN start_date AND end_date
+                      AND is_active = TRUE
+                    ORDER BY priority DESC
+                    LIMIT 1";
+        }
         
         $stmt = $this->conn->prepare($sql);
         $stmt->execute([
@@ -147,16 +229,25 @@ class PriceCalculator {
         $season = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($season) {
-            // คำนวณราคาตาม type
-            if ($season['price_modifier_type'] === 'percentage') {
-                $adjustment = $basePrice * ($season['price_modifier_value'] / 100);
-                return $basePrice + $adjustment;
-            } else { // fixed
-                return $basePrice + $season['price_modifier_value'];
+            if ($hasPriceModifierColumns) {
+                // คำนวณราคาตาม type ใหม่
+                if (isset($season['price_modifier_type']) && $season['price_modifier_type'] === 'percentage') {
+                    $adjustment = $basePrice * (floatval($season['price_modifier_value']) / 100);
+                    return $basePrice + $adjustment;
+                } elseif (isset($season['price_modifier_type']) && $season['price_modifier_type'] === 'fixed') {
+                    return $basePrice + floatval($season['price_modifier_value']);
+                }
+            } else {
+                // ใช้คอลัมน์เก่า
+                if (!empty($season['base_rate_override'])) {
+                    return floatval($season['base_rate_override']);
+                } elseif (!empty($season['rate_multiplier'])) {
+                    return $basePrice * floatval($season['rate_multiplier']);
+                }
             }
         }
         
-        // ไม่มี seasonal price ใช้ราคาฐาน
+        // 4. ไม่มี daily rate และ seasonal price ใช้ราคาฐาน
         return $basePrice;
     }
     
@@ -165,7 +256,7 @@ class PriceCalculator {
      */
     private function getSeasonForDate($roomTypeId, $date) {
         $sql = "SELECT season_name
-                FROM bk_seasonal_prices
+                FROM bk_seasonal_rates
                 WHERE room_type_id = :room_type_id
                   AND :date BETWEEN start_date AND end_date
                   AND is_active = TRUE
@@ -184,6 +275,7 @@ class PriceCalculator {
     
     /**
      * ดึงราคาอย่างง่ายสำหรับแสดงผลเบื้องต้น
+     * Priority: 1. Daily Rate (bk_room_inventory) > 2. Seasonal Rate > 3. Base Price
      */
     public function getSimplePrice($roomTypeId) {
         $roomInfo = $this->getRoomTypeInfo($roomTypeId);
@@ -191,30 +283,102 @@ class PriceCalculator {
             return null;
         }
         
-        // ราคาเริ่มต้น (ราคาต่ำสุด)
-        $sql = "SELECT MIN(
-                    CASE 
-                        WHEN price_modifier_type = 'percentage' THEN 
-                            :base_price + (:base_price * price_modifier_value / 100)
-                        WHEN price_modifier_type = 'fixed' THEN 
-                            :base_price + price_modifier_value
-                        ELSE :base_price
-                    END
-                ) as min_price
-                FROM bk_seasonal_prices
-                WHERE room_type_id = :room_type_id AND is_active = TRUE";
+        $basePrice = $roomInfo['base_price'];
+        $minPrice = $basePrice;
         
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute([
-            'base_price' => $roomInfo['base_price'],
-            'room_type_id' => $roomTypeId
-        ]);
+        // 1. ตรวจสอบราคาต่ำสุดจาก daily rates (30 วันถัดไป)
+        $futureDate = date('Y-m-d', strtotime('+30 days'));
+        try {
+            $checkCol = $this->conn->query("SHOW COLUMNS FROM bk_room_inventory LIKE 'price_with_breakfast'");
+            $hasBreakfastPrice = $checkCol->rowCount() > 0;
+            
+            $sql = "SELECT MIN(price) as min_daily_price
+                    FROM bk_room_inventory
+                    WHERE room_type_id = :room_type_id 
+                      AND date >= CURDATE() 
+                      AND date <= :future_date
+                      AND available_rooms > 0";
+            
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute([
+                'room_type_id' => $roomTypeId,
+                'future_date' => $futureDate
+            ]);
+            
+            $dailyResult = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($dailyResult && !empty($dailyResult['min_daily_price'])) {
+                $minPrice = min($minPrice, floatval($dailyResult['min_daily_price']));
+            }
+        } catch (Exception $e) {
+            // Ignore if table/column doesn't exist
+        }
         
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $minPrice = $result['min_price'] ?? $roomInfo['base_price'];
+        // 2. ตรวจสอบราคาต่ำสุดจาก seasonal rates
+        // ตรวจสอบว่ามีคอลัมน์ price_modifier_type และ price_modifier_value หรือไม่
+        $hasPriceModifierColumns = false;
+        try {
+            $checkCol1 = $this->conn->query("SHOW COLUMNS FROM bk_seasonal_rates LIKE 'price_modifier_type'");
+            $checkCol2 = $this->conn->query("SHOW COLUMNS FROM bk_seasonal_rates LIKE 'price_modifier_value'");
+            if ($checkCol1->rowCount() > 0 && $checkCol2->rowCount() > 0) {
+                $hasPriceModifierColumns = true;
+            }
+        } catch (Exception $e) {
+            $hasPriceModifierColumns = false;
+        }
+        
+        if ($hasPriceModifierColumns) {
+            // ใช้คอลัมน์ใหม่ - ใช้ placeholder ที่แตกต่างกันเพื่อหลีกเลี่ยงปัญหา PDO
+            $sql = "SELECT MIN(
+                        CASE 
+                            WHEN price_modifier_type = 'percentage' THEN 
+                                :base_price1 + (:base_price2 * price_modifier_value / 100)
+                            WHEN price_modifier_type = 'fixed' THEN 
+                                :base_price3 + price_modifier_value
+                            ELSE :base_price4
+                        END
+                    ) as min_seasonal_price
+                    FROM bk_seasonal_rates
+                    WHERE room_type_id = :room_type_id 
+                      AND is_active = TRUE
+                      AND end_date >= CURDATE()";
+            
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute([
+                'base_price1' => $basePrice,
+                'base_price2' => $basePrice,
+                'base_price3' => $basePrice,
+                'base_price4' => $basePrice,
+                'room_type_id' => $roomTypeId
+            ]);
+        } else {
+            // ใช้คอลัมน์เก่า - ใช้ placeholder ที่แตกต่างกัน
+            $sql = "SELECT MIN(
+                        CASE 
+                            WHEN base_rate_override IS NOT NULL THEN base_rate_override
+                            WHEN rate_multiplier IS NOT NULL THEN :base_price1 * rate_multiplier
+                            ELSE :base_price2
+                        END
+                    ) as min_seasonal_price
+                    FROM bk_seasonal_rates
+                    WHERE room_type_id = :room_type_id 
+                      AND is_active = TRUE
+                      AND end_date >= CURDATE()";
+            
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute([
+                'base_price1' => $basePrice,
+                'base_price2' => $basePrice,
+                'room_type_id' => $roomTypeId
+            ]);
+        }
+        
+        $seasonResult = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($seasonResult && !empty($seasonResult['min_seasonal_price'])) {
+            $minPrice = min($minPrice, floatval($seasonResult['min_seasonal_price']));
+        }
         
         return [
-            'base_price' => $roomInfo['base_price'],
+            'base_price' => $basePrice,
             'from_price' => $minPrice,
             'breakfast_included' => (bool)$roomInfo['breakfast_included'],
             'breakfast_price' => $roomInfo['breakfast_price']
@@ -254,7 +418,7 @@ class PriceCalculator {
      * ดึงรายการฤดูกาลทั้งหมดสำหรับห้อง
      */
     public function getSeasonalPrices($roomTypeId) {
-        $sql = "SELECT * FROM bk_seasonal_prices
+        $sql = "SELECT * FROM bk_seasonal_rates
                 WHERE room_type_id = :room_type_id
                 ORDER BY start_date, priority DESC";
         

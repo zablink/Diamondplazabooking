@@ -80,6 +80,30 @@ class Database {
         return $this->getConnection()->query($sql);
     }
     
+    // Execute a query with parameters and return results (for backward compatibility)
+    public function resultSet($sql, $params = []) {
+        try {
+            $stmt = $this->getConnection()->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Database resultSet Error: " . $e->getMessage());
+            throw new Exception("Query Error: " . $e->getMessage());
+        }
+    }
+    
+    // Get single row
+    public function single($sql, $params = []) {
+        try {
+            $stmt = $this->getConnection()->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Database single Error: " . $e->getMessage());
+            throw new Exception("Query Error: " . $e->getMessage());
+        }
+    }
+    
     // Get last insert ID
     public function lastInsertId() {
         return $this->getConnection()->lastInsertId();

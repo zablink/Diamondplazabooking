@@ -71,6 +71,11 @@
             <span>ราคาตามฤดูกาล</span>
         </a>
         
+        <a href="daily-rates.php" class="nav-item <?= basename($_SERVER['PHP_SELF']) == 'daily-rates.php' ? 'active' : '' ?>">
+            <i class="fas fa-calendar-day"></i>
+            <span>ราคารายวัน</span>
+        </a>
+        
         <a href="amenities.php" class="nav-item <?= basename($_SERVER['PHP_SELF']) == 'amenities.php' ? 'active' : '' ?>">
             <i class="fas fa-star"></i>
             <span>สิ่งอำนวยความสะดวก</span>
@@ -123,6 +128,11 @@
         <a href="hotel-settings.php" class="nav-item <?= basename($_SERVER['PHP_SELF']) == 'hotel-settings.php' ? 'active' : '' ?>">
             <i class="fas fa-hotel"></i>
             <span>ข้อมูลโรงแรม</span>
+        </a>
+        
+        <a href="email-templates.php" class="nav-item <?= basename($_SERVER['PHP_SELF']) == 'email-templates.php' ? 'active' : '' ?>">
+            <i class="fas fa-envelope"></i>
+            <span>ข้อความอีเมล</span>
         </a>
         
         <a href="admin-users.php" class="nav-item <?= basename($_SERVER['PHP_SELF']) == 'admin-users.php' ? 'active' : '' ?>">

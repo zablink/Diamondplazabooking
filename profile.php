@@ -15,7 +15,7 @@ while (!file_exists($projectRoot . '/includes/init.php')) {
 }
 require_once $projectRoot . '/includes/init.php';
 
-$page_title = 'โปรไฟล์ของฉัน';
+$page_title = __('profile.title') . ' - ' . SITE_NAME;
 require_once PROJECT_ROOT . '/includes/header.php';
 require_once PROJECT_ROOT . '/config/config.php';
 require_once PROJECT_ROOT . '/includes/Database.php';

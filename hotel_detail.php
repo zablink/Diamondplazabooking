@@ -32,18 +32,35 @@ if (!$hotel) {
     redirect(PROJECT_ROOT . '/index.php');
 }
 
+// ดึงข้อมูลโรงแรมที่รองรับหลายภาษา
+require_once PROJECT_ROOT . '/modules/admin/AdminClass.php';
+$admin = new Admin();
+$hotelSettings = $admin->getHotelSettings();
+
+// ใช้ข้อมูลจาก hotel settings ถ้ามี
+$currentLang = getCurrentLanguage();
+$hotelName = !empty($hotelSettings['hotel_name_' . $currentLang]) ? $hotelSettings['hotel_name_' . $currentLang] : 
+             (!empty($hotelSettings['hotel_name']) ? $hotelSettings['hotel_name'] : $hotel['hotel_name']);
+$hotelDescription = !empty($hotelSettings['description_' . $currentLang]) ? $hotelSettings['description_' . $currentLang] : 
+                   (!empty($hotelSettings['description']) ? $hotelSettings['description'] : ($hotel['description'] ?? ''));
+
 $roomTypes = $hotelObj->getRoomTypes($hotelId);
 $reviews = $hotelObj->getHotelReviews($hotelId, 5);
 
 $images = parseJSON($hotel['images']);
 $amenities = parseJSON($hotel['amenities']);
+
+// แปลงชื่อสิ่งอำนวยความสะดวกตามภาษา
+$amenities = array_map(function($amenity) {
+    return getAmenityName($amenity);
+}, $amenities);
 ?>
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($hotel['hotel_name']); ?> - <?php echo SITE_NAME; ?></title>
+    <title><?php echo htmlspecialchars($hotelName); ?> - <?php echo getHotelName(); ?></title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -78,7 +95,7 @@ $amenities = parseJSON($hotel['amenities']);
             <i class="fas fa-chevron-right" style="margin: 0 0.5rem; font-size: 0.8rem;"></i>
             <a href="search.php" style="color: var(--primary-color); text-decoration: none;">ค้นหาโรงแรม</a>
             <i class="fas fa-chevron-right" style="margin: 0 0.5rem; font-size: 0.8rem;"></i>
-            <span><?php echo htmlspecialchars($hotel['hotel_name']); ?></span>
+            <span><?php echo htmlspecialchars($hotelName); ?></span>
         </div>
 
         <!-- Hotel Detail -->
@@ -111,12 +128,24 @@ $amenities = parseJSON($hotel['amenities']);
             <div class="hotel-info">
                 <div style="display: flex; justify-content: space-between; align-items: start;">
                     <div>
-                        <h1 class="hotel-title"><?php echo htmlspecialchars($hotel['hotel_name']); ?></h1>
+                        <h1 class="hotel-title"><?php echo htmlspecialchars($hotelName); ?></h1>
                         <p class="hotel-card-location" style="font-size: 1.1rem;">
                             <i class="fas fa-map-marker-alt"></i>
-                            <?php echo htmlspecialchars($hotel['address']); ?>, 
-                            <?php echo htmlspecialchars($hotel['city']); ?>, 
-                            <?php echo htmlspecialchars($hotel['country']); ?>
+                            <?php 
+                            // ใช้ข้อมูลจาก hotel settings ที่รองรับหลายภาษา
+                            $currentLang = getCurrentLanguage();
+                            $hotelAddress = !empty($hotelSettings['address_' . $currentLang]) ? $hotelSettings['address_' . $currentLang] : 
+                                          (!empty($hotelSettings['address']) ? $hotelSettings['address'] : ($hotel['address'] ?? ''));
+                            $hotelCity = !empty($hotelSettings['city_' . $currentLang]) ? $hotelSettings['city_' . $currentLang] : 
+                                        (!empty($hotelSettings['city']) ? $hotelSettings['city'] : ($hotel['city'] ?? ''));
+                            ?>
+                            <?php if (!empty($hotelAddress)): ?>
+                                <?php echo htmlspecialchars($hotelAddress); ?>
+                                <?php if (!empty($hotelCity)): ?>, <?php echo htmlspecialchars($hotelCity); ?><?php endif; ?>
+                            <?php else: ?>
+                                <?php echo htmlspecialchars($hotel['address'] ?? ''); ?><?php if (!empty($hotel['city'])): ?>, <?php echo htmlspecialchars($hotel['city']); ?><?php endif; ?>
+                            <?php endif; ?>
+                            <?php if (!empty($hotel['country'])): ?>, <?php echo htmlspecialchars($hotel['country']); ?><?php endif; ?>
                         </p>
                     </div>
                     <div style="text-align: right;">
@@ -136,11 +165,13 @@ $amenities = parseJSON($hotel['amenities']);
                     </div>
                 </div>
 
+                <?php if (!empty($hotelDescription)): ?>
                 <div style="margin: 2rem 0; padding: 1.5rem 0; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
                     <p style="color: var(--text-secondary); line-height: 1.8;">
-                        <?php echo nl2br(htmlspecialchars($hotel['description'])); ?>
+                        <?php echo nl2br(htmlspecialchars($hotelDescription)); ?>
                     </p>
                 </div>
+                <?php endif; ?>
 
                 <!-- Amenities -->
                 <?php if (!empty($amenities)): ?>
@@ -175,8 +206,15 @@ $amenities = parseJSON($hotel['amenities']);
                     ขออภัย ไม่มีห้องพักว่างในขณะนี้
                 </div>
             <?php else: ?>
-                <?php foreach ($roomTypes as $room): 
-                    $roomAmenities = parseJSON($room['amenities']);
+                        <?php foreach ($roomTypes as $room): 
+                    $roomAmenitiesData = parseJSON($room['amenities']);
+                    // แปลงชื่อสิ่งอำนวยความสะดวกตามภาษา
+                    $roomAmenities = [];
+                    if (!empty($roomAmenitiesData)) {
+                        $roomAmenities = array_map(function($amenity) {
+                            return getAmenityName($amenity);
+                        }, $roomAmenitiesData);
+                    }
                 ?>
                 <div class="room-card">
                     <div class="room-image" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">

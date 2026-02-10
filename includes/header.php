@@ -40,7 +40,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $page_title ?? SITE_NAME; ?></title>
+    <title><?php echo $page_title ?? getHotelName(); ?></title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -268,18 +268,18 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <!-- Header -->
     <header class="header">
         <div class="header-container">
-            <a href="index.php" class="logo">
+            <a href="<?php echo url('index.php'); ?>" class="logo">
                 <i class="fas fa-hotel"></i>
-                <span><?php echo SITE_NAME; ?></span>
+                <span><?php echo htmlspecialchars(getHotelName()); ?></span>
             </a>
 
             <nav class="nav-menu">
-                <a href="index.php">
+                <a href="<?php echo url('index.php'); ?>">
                     <i class="fas fa-door-open"></i> <?php _e('nav.rooms'); ?>
                 </a>
 
                 <?php if ($is_logged_in): ?>
-                    <a href="my_bookings.php">
+                    <a href="<?php echo url('my_bookings.php'); ?>">
                         <i class="fas fa-calendar-check"></i> <?php _e('nav.my_bookings'); ?>
                     </a>
                     
@@ -305,21 +305,24 @@ $current_page = basename($_SERVER['PHP_SELF']);
                         </button>
                     </div>
                 <?php else: ?>
-                    <a href="login.php">
+                    <a href="<?php echo url('login.php'); ?>">
                         <i class="fas fa-sign-in-alt"></i> <?php _e('nav.login'); ?>
                     </a>
-                    <a href="register.php" style="padding: 8px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 25px; font-weight: 600;">
+                    <a href="<?php echo url('register.php'); ?>" style="padding: 8px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 25px; font-weight: 600;">
                         <i class="fas fa-user-plus"></i> <?php _e('nav.register'); ?>
                     </a>
                 <?php endif; ?>
 
                 <!-- Language Switcher -->
                 <div class="lang-switcher">
-                    <a href="?lang=th" class="<?php echo $current_lang === 'th' ? 'active' : ''; ?>">
+                    <a href="<?php echo getLanguageUrl('th'); ?>" class="<?php echo $current_lang === 'th' ? 'active' : ''; ?>">
                         <i class="fas fa-flag"></i> TH
                     </a>
-                    <a href="?lang=en" class="<?php echo $current_lang === 'en' ? 'active' : ''; ?>">
+                    <a href="<?php echo getLanguageUrl('en'); ?>" class="<?php echo $current_lang === 'en' ? 'active' : ''; ?>">
                         <i class="fas fa-flag"></i> EN
+                    </a>
+                    <a href="<?php echo getLanguageUrl('zh'); ?>" class="<?php echo $current_lang === 'zh' ? 'active' : ''; ?>">
+                        <i class="fas fa-flag"></i> 中文
                     </a>
                 </div>
             </nav>

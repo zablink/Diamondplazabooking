@@ -30,7 +30,10 @@ $messageType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = [
-        'site_name' => $_POST['site_name'],
+        'site_name' => $_POST['site_name'] ?? $_POST['site_name_th'] ?? '',
+        'site_name_th' => $_POST['site_name_th'] ?? '',
+        'site_name_en' => $_POST['site_name_en'] ?? '',
+        'site_name_zh' => $_POST['site_name_zh'] ?? '',
         'site_url' => $_POST['site_url'],
         'timezone' => $_POST['timezone'],
         'date_format' => $_POST['date_format'],
@@ -202,9 +205,20 @@ $settings = $admin->getSystemSettings();
                     <h3><i class="fas fa-cog"></i> การตั้งค่าทั่วไป</h3>
                     
                     <div class="form-grid">
-                        <div class="form-group">
+                        <div class="form-group" style="grid-column: 1 / -1;">
                             <label>ชื่อเว็บไซต์</label>
-                            <input type="text" name="site_name" value="<?= htmlspecialchars($settings['site_name'] ?? SITE_NAME) ?>" required>
+                            <div style="margin-bottom: 1rem;">
+                                <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">ภาษาไทย</label>
+                                <input type="text" name="site_name_th" value="<?= htmlspecialchars($settings['site_name_th'] ?? $settings['site_name'] ?? SITE_NAME) ?>" required>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">English</label>
+                                <input type="text" name="site_name_en" value="<?= htmlspecialchars($settings['site_name_en'] ?? '') ?>">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">中文</label>
+                                <input type="text" name="site_name_zh" value="<?= htmlspecialchars($settings['site_name_zh'] ?? '') ?>">
+                            </div>
                         </div>
                         
                         <div class="form-group">

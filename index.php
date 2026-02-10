@@ -1,10 +1,8 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/php_errors.log');
-
+/**
+ * booking/index.php
+ * หน้าแรกระบบจองห้องพัก - แสดงรายการห้องพักทั้งหมดพร้อม Featured Image
+ */
 
 //// init for SESSION , PROJECT_PATH , etc..
 // Auto-find project root
@@ -19,320 +17,871 @@ while (!file_exists($projectRoot . '/includes/init.php')) {
 require_once $projectRoot . '/includes/init.php';
 
 require_once PROJECT_ROOT . '/config/config.php';
-require_once PROJECT_ROOT . '/includes/Database.php';
 require_once PROJECT_ROOT . '/includes/helpers.php';
 require_once PROJECT_ROOT . '/modules/hotel/Hotel.php';
+require_once PROJECT_ROOT . '/includes/RoomImage.php';
+require_once PROJECT_ROOT . '/includes/PriceCalculator.php';
 
-$hotelObj = new Hotel();
+$page_title = __('home.our_rooms') . ' - ' . SITE_NAME;
 
-// ดึงข้อมูลโรงแรม
-$hotel = $hotelObj->getHotelById(HOTEL_ID);
+// Initialize classes
+$hotel = new Hotel();
+$roomImage = new RoomImage();
+$priceCalculator = new PriceCalculator();
 
-if (!$hotel) {
-    die('Hotel not found. Please check HOTEL_ID in config.php');
-}
+// ดึงรายการห้องพักทั้งหมดที่พร้อมใช้งาน
+$roomTypes = $hotel->getRoomTypes(HOTEL_ID, 'available');
 
-// ดึงห้องพักทั้งหมด
-$roomTypes = $hotelObj->getRoomTypes(HOTEL_ID);
+// ดึง flash message (ถ้ามี)
+$flash = getFlashMessage();
 
-// ดึงรีวิว
-$reviews = $hotelObj->getHotelReviews(HOTEL_ID, 3);
-
-$flashMessage = getFlashMessage();
-
-// ดึงข้อมูลเพิ่มเติม
-$amenities = parseJSON($hotel['amenities']);
-$images = parseJSON($hotel['images']);
-
-// ตั้งค่า page title
-$page_title = htmlspecialchars($hotel['hotel_name']) . ' - ' . SITE_NAME;
-
-// Include header
-include './includes/header.php';
+require_once PROJECT_ROOT . '/includes/header.php';
 ?>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    <!-- Flash Message -->
-    <?php if ($flashMessage): ?>
-    <div class="container" style="margin-top: 20px;">
-        <div class="alert alert-<?php echo $flashMessage['type']; ?>">
-            <?php echo $flashMessage['message']; ?>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 80px 20px 60px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="rgba(255,255,255,0.1)" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>');
+            background-size: cover;
+            background-position: bottom;
+            opacity: 0.3;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .hero-section h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .hero-section p {
+            font-size: 1.3rem;
+            opacity: 0.95;
+            margin-bottom: 2rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1200px;
+            margin: -40px auto 60px;
+            padding: 0 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Search Box */
+        .search-box {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
+        }
+
+        .search-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-search {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            font-size: 14px;
+        }
+
+        .btn-search:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Section Header */
+        .section-header {
+            margin-bottom: 30px;
+        }
+
+        .section-header h2 {
+            font-size: 2rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .section-header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        /* Room Cards Grid */
+        .rooms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .room-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .room-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        /* Room Image */
+        .room-image {
+            position: relative;
+            width: 100%;
+            height: 250px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .room-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s;
+        }
+
+        .room-card:hover .room-image img {
+            transform: scale(1.1);
+        }
+
+        .room-image-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .room-image-placeholder i {
+            font-size: 64px;
+            margin-bottom: 15px;
+            opacity: 0.7;
+        }
+
+        .room-image-placeholder p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            z-index: 1;
+        }
+
+        .status-badge.available {
+            background: rgba(39, 174, 96, 0.9);
+            color: white;
+        }
+
+        .status-badge.limited {
+            background: rgba(241, 196, 15, 0.9);
+            color: white;
+        }
+
+        .breakfast-badge {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            z-index: 1;
+            background: rgba(39, 174, 96, 0.9);
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .breakfast-badge i {
+            font-size: 12px;
+        }
+
+        /* Room Content */
+        .room-content {
+            padding: 25px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .room-header {
+            margin-bottom: 15px;
+        }
+
+        .room-name {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .room-description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Room Meta */
+        .room-meta {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            align-items: flex-start;
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            color: #666;
+            font-size: 14px;
+            text-align: center;
+            min-width: 60px;
+        }
+
+        .meta-item i {
+            color: #667eea;
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        /* Amenities Preview */
+        .amenities-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .amenity-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            background: #f0f4ff;
+            color: #667eea;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .amenity-tag i {
+            font-size: 12px;
+        }
+
+        /* Room Footer */
+        .room-footer {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: auto;
+        }
+
+        .room-price {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .price-label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+
+        .price-amount {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .price-unit {
+            font-size: 14px;
+            color: #999;
+            margin-left: 4px;
+        }
+
+        .btn-book {
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .room-footer .btn-book {
+            width: 100%;
+        }
+
+        .btn-book:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        .empty-state i {
+            font-size: 80px;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            color: #999;
+        }
+
+        /* Flash Messages */
+        .flash-message {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .flash-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .flash-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .flash-message i {
+            font-size: 20px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-section h1 {
+                font-size: 2rem;
+            }
+
+            .hero-section p {
+                font-size: 1rem;
+            }
+
+            .rooms-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .search-form {
+                grid-template-columns: 1fr;
+            }
+
+            .room-footer {
+                align-items: stretch;
+            }
+
+            .btn-book {
+                width: 100%;
+                text-align: center;
+            }
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .loading i {
+            font-size: 48px;
+            color: #667eea;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Info Section */
+        .info-section {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            margin-top: 40px;
+        }
+
+        .info-section h3 {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .info-section p {
+            color: #666;
+            line-height: 1.8;
+        }
+
+        /* Stats Counter */
+        .stats-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+
+        .stat-item h4 {
+            font-size: 2rem;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-item p {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <div class="hero-content">
+            <h1>
+                <i class="fas fa-hotel"></i>
+                <?php _e('home.hero_title'); ?>
+            </h1>
+            <p><?php _e('home.hero_subtitle'); ?></p>
         </div>
     </div>
-    <?php endif; ?>
 
-    <!-- Hero Section -->
-    <section class="search-hero">
-        <div class="container">
-            <h1><?php echo htmlspecialchars($hotel['hotel_name']); ?></h1>
-            <div style="margin: 1rem 0;">
-                <?php echo generateStarRating($hotel['star_rating']); ?>
-                <?php if (isset($hotel['avg_rating'])): ?>
-                    <span style="background: rgba(255,255,255,0.2); padding: 0.5rem 1rem; border-radius: 20px; margin-left: 1rem;">
-                        <i class="fas fa-star"></i> <?php echo number_format($hotel['avg_rating'], 1); ?>/5.0
-                    </span>
-                <?php endif; ?>
-            </div>
-            <p>
-                <i class="fas fa-map-marker-alt"></i>
-                <?php echo htmlspecialchars($hotel['address']); ?>, 
-                <?php echo htmlspecialchars($hotel['city']); ?>
-            </p>
-        </div>
-    </section>
-
-    <!-- About Hotel -->
-    <section class="container" id="about" style="margin: 3rem auto;">
-        <div style="background: white; padding: 3rem; border-radius: 12px; box-shadow: var(--shadow);">
-            <h2 style="font-size: 2rem; margin-bottom: 1.5rem;">
-                <i class="fas fa-info-circle" style="color: var(--primary-color);"></i>
-                <?php _e('home.about_hotel'); ?>
-            </h2>
-            
-            <!-- Gallery -->
-            <?php if (!empty($images) && count($images) >= 4): ?>
-            <div class="hotel-gallery" style="margin-bottom: 2rem;">
-                <div class="gallery-main">
-                    <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">
-                        <i class="fas fa-hotel" style="font-size: 5rem; color: white;"></i>
-                    </div>
-                </div>
-                <div class="gallery-item">
-                    <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); display: flex; align-items: center; justify-content: center;">
-                        <i class="fas fa-bed" style="font-size: 3rem; color: white;"></i>
-                    </div>
-                </div>
-                <div class="gallery-item">
-                    <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">
-                        <i class="fas fa-swimming-pool" style="font-size: 3rem; color: white;"></i>
-                    </div>
-                </div>
-                <div class="gallery-item">
-                    <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); display: flex; align-items: center; justify-content: center;">
-                        <i class="fas fa-utensils" style="font-size: 3rem; color: white;"></i>
-                    </div>
-                </div>
-            </div>
-            <?php endif; ?>
-            
-            <p style="color: var(--text-secondary); line-height: 1.8; font-size: 1.1rem; margin-bottom: 2rem;">
-                <?php echo nl2br(htmlspecialchars($hotel['description'])); ?>
-            </p>
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
-                <div style="text-align: center; padding: 1.5rem; background: var(--bg-light); border-radius: 8px;">
-                    <i class="fas fa-map-marker-alt" style="font-size: 2rem; color: var(--primary-color); margin-bottom: 0.5rem;"></i>
-                    <h4><?php _e('home.location'); ?></h4>
-                    <p style="color: var(--text-secondary); margin-top: 0.5rem;"><?php echo htmlspecialchars($hotel['city']); ?></p>
-                </div>
-                <div style="text-align: center; padding: 1.5rem; background: var(--bg-light); border-radius: 8px;">
-                    <i class="fas fa-star" style="font-size: 2rem; color: var(--secondary-color); margin-bottom: 0.5rem;"></i>
-                    <h4><?php _e('home.rating'); ?></h4>
-                    <p style="color: var(--text-secondary); margin-top: 0.5rem;"><?php echo generateStarRating($hotel['star_rating']); ?></p>
-                </div>
-                <div style="text-align: center; padding: 1.5rem; background: var(--bg-light); border-radius: 8px;">
-                    <i class="fas fa-phone" style="font-size: 2rem; color: var(--success-color); margin-bottom: 0.5rem;"></i>
-                    <h4><?php _e('home.contact'); ?></h4>
-                    <p style="color: var(--text-secondary); margin-top: 0.5rem;"><?php echo htmlspecialchars($hotel['phone']); ?></p>
-                </div>
-            </div>
-            
-            <?php if (!empty($amenities)): ?>
-            <div style="margin-top: 2rem; padding-top: 2rem; border-top: 2px solid var(--bg-light);">
-                <h3 style="font-size: 1.5rem; margin-bottom: 1rem;">
-                    <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
-                    <?php _e('home.hotel_amenities'); ?>
-                </h3>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
-                    <?php foreach ($amenities as $amenity): ?>
-                    <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary);">
-                        <i class="fas fa-check" style="color: var(--success-color);"></i>
-                        <span><?php echo htmlspecialchars($amenity); ?></span>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            <?php endif; ?>
-        </div>
-    </section>
-
-    <!-- Available Rooms -->
-    <section class="container" id="rooms" style="margin: 3rem auto;">
-        <h2 style="font-size: 2.5rem; margin-bottom: 3rem; text-align: center; font-weight: 700;">
-            <i class="fas fa-door-open" style="color: var(--primary-color);"></i>
-            <?php _e('hotel.our_rooms'); ?>
-        </h2>
+    <!-- Main Content -->
+    <div class="main-content">
         
+        <!-- Flash Message -->
+        <?php if ($flash): ?>
+            <div class="flash-message <?= $flash['type'] ?>">
+                <i class="fas fa-<?= $flash['type'] == 'success' ? 'check-circle' : 'exclamation-circle' ?>"></i>
+                <span><?= htmlspecialchars($flash['message']) ?></span>
+            </div>
+        <?php endif; ?>
+
+        <!-- Search Box -->
+        <div class="search-box">
+            <form class="search-form" method="GET" action="search_rooms.php">
+                <div class="form-group">
+                    <label><i class="fas fa-calendar-check"></i> <?php _e('home.check_in'); ?></label>
+                    <input type="date" name="check_in" min="<?= date('Y-m-d') ?>" required>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-calendar-times"></i> <?php _e('home.check_out'); ?></label>
+                    <input type="date" name="check_out" min="<?= date('Y-m-d', strtotime('+1 day')) ?>" required>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-users"></i> <?php _e('home.guests'); ?></label>
+                    <select name="guests">
+                        <option value="1">1 <?php _e('home.people'); ?></option>
+                        <option value="2" selected>2 <?php _e('home.people'); ?></option>
+                        <option value="3">3 <?php _e('home.people'); ?></option>
+                        <option value="4">4 <?php _e('home.people'); ?></option>
+                        <option value="5">5+ <?php _e('home.people'); ?></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn-search">
+                        <i class="fas fa-search"></i> <?php _e('common.search'); ?>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Stats Bar -->
         <?php if (!empty($roomTypes)): ?>
-            <div style="display: flex; flex-direction: column; gap: 3rem;">
-                <?php 
-                foreach ($roomTypes as $room):
-                    $roomAmenities = parseJSON($room['amenities']);
+        <div class="stats-bar">
+            <div class="stat-item">
+                <h4><?= count($roomTypes) ?></h4>
+                <p><?php _e('home.room_types'); ?></p>
+            </div>
+            <div class="stat-item">
+                <h4><?= array_sum(array_column($roomTypes, 'total_rooms')) ?></h4>
+                <p><?php _e('home.total_rooms'); ?></p>
+            </div>
+            <div class="stat-item">
+                <?php
+                // ดึงราคาต่ำสุดจาก daily rates หรือ base price
+                $minPrices = [];
+                foreach ($roomTypes as $room) {
+                    $priceInfo = $priceCalculator->getSimplePrice($room['room_type_id']);
+                    $minPrices[] = $priceInfo ? $priceInfo['from_price'] : $room['base_price'];
+                }
+                $minPrice = !empty($minPrices) ? min($minPrices) : 0;
                 ?>
-                <div style="background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 6px 25px rgba(0,0,0,0.1); transition: all 0.3s ease;" 
-                     onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 12px 35px rgba(0,0,0,0.15)';" 
-                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 25px rgba(0,0,0,0.1)';">
+                <h4>฿<?= number_format($minPrice) ?>+</h4>
+                <p><?php _e('home.starting_price'); ?></p>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- Section Header -->
+        <div class="section-header">
+            <h2>
+                <i class="fas fa-bed"></i> <?php _e('home.our_rooms'); ?>
+            </h2>
+            <p><?php _e('home.select_room_for_you'); ?></p>
+        </div>
+
+        <!-- Rooms Grid -->
+        <?php if (!empty($roomTypes)): ?>
+            <div class="rooms-grid">
+                <?php foreach ($roomTypes as $room): ?>
+                    <?php
+                    // ดึง featured image
+                    $featuredImage = $roomImage->getFeaturedImage($room['room_type_id']);
                     
-                    <div style="display: grid; grid-template-columns: 400px 1fr; gap: 0; min-height: 350px;">
-                        <!-- Room Image Section -->
-                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
-                            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at 30% 50%, rgba(255,255,255,0.1) 0%, transparent 50%);"></div>
-                            <i class="fas fa-bed" style="font-size: 6rem; color: rgba(255,255,255,0.3); position: relative; z-index: 1;"></i>
-                            <div style="position: absolute; top: 1.5rem; left: 1.5rem; background: rgba(255,255,255,0.95); padding: 0.75rem 1.5rem; border-radius: 25px; font-weight: bold; color: var(--primary-color); box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-                                <i class="fas fa-tag"></i> <?php echo htmlspecialchars($room['room_type_name']); ?>
-                            </div>
-                        </div>
-                        
-                        <!-- Room Details Section -->
-                        <div style="padding: 3rem; display: flex; flex-direction: column; justify-content: space-between;">
-                            <div>
-                                <h3 style="font-size: 2.2rem; color: var(--text-primary); margin-bottom: 1.5rem; font-weight: 700;">
-                                    <?php echo htmlspecialchars($room['room_type_name']); ?>
-                                </h3>
-                                
-                                <p style="color: var(--text-secondary); margin-bottom: 2rem; line-height: 1.8; font-size: 1.1rem;">
-                                    <?php echo htmlspecialchars($room['description']); ?>
-                                </p>
-                                
-                                <!-- Room Features Grid -->
-                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-                                    <div style="display: flex; align-items: center; gap: 1rem;">
-                                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);">
-                                            <i class="fas fa-ruler-combined" style="color: white; font-size: 1.3rem;"></i>
-                                        </div>
-                                        <div>
-                                            <div style="font-size: 0.9rem; color: var(--text-secondary);">ขนาดห้อง</div>
-                                            <div style="font-weight: 700; color: var(--text-primary); font-size: 1.1rem;"><?php echo $room['size_sqm']; ?> ตร.ม.</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div style="display: flex; align-items: center; gap: 1rem;">
-                                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);">
-                                            <i class="fas fa-users" style="color: white; font-size: 1.3rem;"></i>
-                                        </div>
-                                        <div>
-                                            <div style="font-size: 0.9rem; color: var(--text-secondary);">จำนวนผู้เข้าพัก</div>
-                                            <div style="font-weight: 700; color: var(--text-primary); font-size: 1.1rem;">สูงสุด <?php echo $room['max_occupancy']; ?> คน</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div style="display: flex; align-items: center; gap: 1rem;">
-                                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);">
-                                            <i class="fas fa-bed" style="color: white; font-size: 1.3rem;"></i>
-                                        </div>
-                                        <div>
-                                            <div style="font-size: 0.9rem; color: var(--text-secondary);">ประเภทเตียง</div>
-                                            <div style="font-weight: 700; color: var(--text-primary); font-size: 1.1rem;"><?php echo htmlspecialchars($room['bed_type']); ?></div>
-                                        </div>
-                                    </div>
+                    // Parse amenities และแปลงชื่อตามภาษา
+                    $amenities = [];
+                    if (!empty($room['amenities'])) {
+                        $amenitiesData = json_decode($room['amenities'], true);
+                        if (is_array($amenitiesData)) {
+                            $amenities = array_slice($amenitiesData, 0, 4); // แสดงแค่ 4 รายการแรก
+                            // แปลงชื่อสิ่งอำนวยความสะดวกตามภาษา
+                            $amenities = array_map(function($amenity) {
+                                return getAmenityName($amenity);
+                            }, $amenities);
+                        }
+                    }
+                    
+                    // ไอคอนสำหรับ amenities
+                    $amenityIcons = [
+                        'WiFi' => 'wifi',
+                        'TV' => 'tv',
+                        'Air Conditioning' => 'snowflake',
+                        'Mini Bar' => 'glass-martini',
+                        'Safe Box' => 'lock',
+                        'Hair Dryer' => 'wind',
+                        'Bathtub' => 'bath',
+                        'Shower' => 'shower',
+                        'Coffee Maker' => 'coffee',
+                        'Electric Kettle' => 'mug-hot',
+                        'Work Desk' => 'desk',
+                        'Balcony' => 'home'
+                    ];
+                    ?>
+                    <div class="room-card">
+                        <!-- Room Image -->
+                        <div class="room-image">
+                            <?php if ($featuredImage): ?>
+                                <img src="<?= SITE_URL . '/' . htmlspecialchars($featuredImage['image_path']) ?>" 
+                                     alt="<?= htmlspecialchars($room['room_type_name']) ?>"
+                                     loading="lazy">
+                            <?php else: ?>
+                                <div class="room-image-placeholder">
+                                    <i class="fas fa-image"></i>
+                                    <p><?php _e('home.no_image'); ?></p>
                                 </div>
-                                
-                                <!-- Amenities -->
-                                <?php if (!empty($roomAmenities)): ?>
-                                <div>
-                                    <h4 style="font-size: 1.2rem; color: var(--text-primary); margin-bottom: 1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
-                                        <i class="fas fa-star" style="color: var(--secondary-color);"></i>
-                                        <span>สิ่งอำนวยความสะดวก</span>
-                                    </h4>
-                                    <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
-                                        <?php 
-                                        $displayAmenities = array_slice($roomAmenities, 0, 6);
-                                        foreach ($displayAmenities as $amenity): 
-                                        ?>
-                                        <span style="background: var(--bg-light); padding: 0.6rem 1.2rem; border-radius: 25px; font-size: 0.95rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;"
-                                              onmouseover="this.style.background='linear-gradient(135deg, #667eea 0%, #764ba2 100%)'; this.style.color='white';"
-                                              onmouseout="this.style.background='var(--bg-light)'; this.style.color='var(--text-secondary)';">
-                                            <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
-                                            <?php echo htmlspecialchars($amenity); ?>
-                                        </span>
-                                        <?php endforeach; ?>
-                                        <?php if (count($roomAmenities) > 6): ?>
-                                        <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.6rem 1.2rem; border-radius: 25px; font-size: 0.95rem; font-weight: 600; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);">
-                                            +<?php echo count($roomAmenities) - 6; ?> เพิ่มเติม
-                                        </span>
-                                        <?php endif; ?>
-                                    </div>
+                            <?php endif; ?>
+                            
+                            <!-- Status Badge -->
+                            <div class="status-badge available">
+                                <i class="fas fa-check-circle"></i> <?php _e('home.available'); ?>
+                            </div>
+                            
+                            <!-- Breakfast Badge -->
+                            <?php if (!empty($room['breakfast_included']) && $room['breakfast_included'] == 1): ?>
+                            <div class="breakfast-badge">
+                                <i class="fas fa-utensils"></i>
+                                <span><?php _e('home.breakfast_included'); ?></span>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- Room Content -->
+                        <div class="room-content">
+                            <div class="room-header">
+                                <h3 class="room-name"><?= htmlspecialchars($room['room_type_name']) ?></h3>
+                            </div>
+
+                            <p class="room-description">
+                                <?= htmlspecialchars($room['description'] ?? __('home.comfortable_room')) ?>
+                            </p>
+
+                            <!-- Room Meta -->
+                            <div class="room-meta">
+                                <div class="meta-item">
+                                    <i class="fas fa-users"></i>
+                                    <span><?= $room['max_occupancy'] ?> <?php _e('home.people'); ?></span>
+                                </div>
+                                <?php if (!empty($room['total_rooms'])): ?>
+                                <div class="meta-item">
+                                    <i class="fas fa-door-open"></i>
+                                    <span><?= $room['total_rooms'] ?> <?php _e('home.rooms'); ?></span>
+                                </div>
+                                <?php endif; ?>
+                                <?php if ($room['breakfast_included']): ?>
+                                <div class="meta-item">
+                                    <i class="fas fa-utensils"></i>
+                                    <span><?php _e('home.breakfast_included'); ?></span>
                                 </div>
                                 <?php endif; ?>
                             </div>
-                            
-                            <!-- Bottom Action Bar -->
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 2rem; margin-top: 2rem; border-top: 2px solid var(--bg-light);">
-                                <div>
-                                    <div style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                                        <i class="fas fa-info-circle" style="color: var(--primary-color);"></i>
-                                        <span>คลิกเพื่อดูรายละเอียดเพิ่มเติม</span>
-                                    </div>
-                                    <div style="font-size: 0.9rem; color: var(--text-secondary);">
-                                        ราคา พร้อมจองห้อง และดูตัวเลือกห้องพักเพิ่มเติม
+
+                            <!-- Amenities Preview -->
+                            <?php if (!empty($amenities)): ?>
+                            <div class="amenities-preview">
+                                <?php foreach ($amenities as $amenity): ?>
+                                    <span class="amenity-tag">
+                                        <i class="fas fa-<?= $amenityIcons[$amenity] ?? 'check' ?>"></i>
+                                        <?= htmlspecialchars($amenity) ?>
+                                    </span>
+                                <?php endforeach; ?>
+                                <?php if (count($amenitiesData ?? []) > 4): ?>
+                                    <span class="amenity-tag">
+                                        <i class="fas fa-plus"></i>
+                                        +<?= count($amenitiesData) - 4 ?> <?php _e('home.more'); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                            <?php endif; ?>
+
+                            <!-- Room Footer -->
+                            <div class="room-footer">
+                                <div class="room-price">
+                                    <span class="price-label"><?php _e('home.starting_from'); ?></span>
+                                    <div>
+                                        <?php
+                                        // ดึงราคาจาก daily rates หรือ base price
+                                        $priceInfo = $priceCalculator->getSimplePrice($room['room_type_id']);
+                                        $displayPrice = $priceInfo ? $priceInfo['from_price'] : $room['base_price'];
+                                        ?>
+                                        <span class="price-amount">฿<?= number_format($displayPrice, 0) ?></span>
+                                        <span class="price-unit"><?php _e('home.per_night'); ?></span>
                                     </div>
                                 </div>
-                                
-                                <a href="room_detail.php?room_type_id=<?php echo $room['room_type_id']; ?>" 
-                                   class="btn btn-primary" 
-                                   style="padding: 1.2rem 3rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.75rem; font-size: 1.15rem; font-weight: 700; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); transition: all 0.3s; border-radius: 30px;"
-                                   onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 25px rgba(102, 126, 234, 0.6)';"
-                                   onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
-                                    <span>ดูรายละเอียด</span>
-                                    <i class="fas fa-arrow-right"></i>
+                                <a href="<?php echo url('room_detail.php', ['id' => $room['room_type_id']]); ?>" class="btn-book">
+                                    <i class="fas fa-arrow-right"></i> <?php _e('home.view_details'); ?>
                                 </a>
                             </div>
                         </div>
                     </div>
-                </div>
                 <?php endforeach; ?>
             </div>
+
         <?php else: ?>
-            <div style="text-align: center; padding: 5rem 2rem; background: white; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-                <i class="fas fa-bed" style="font-size: 5rem; color: var(--text-secondary); opacity: 0.3; margin-bottom: 1.5rem;"></i>
-                <p style="color: var(--text-secondary); font-size: 1.3rem; font-weight: 500;">
-                    <?php _e('hotel.no_rooms'); ?>
-                </p>
+            <!-- Empty State -->
+            <div class="empty-state">
+                <i class="fas fa-bed"></i>
+                <h3><?php _e('home.no_rooms_available'); ?></h3>
+                <p><?php _e('home.contact_us_for_more_info'); ?></p>
             </div>
         <?php endif; ?>
-    </section>
 
-    <!-- Reviews Section -->
-    <?php if (!empty($reviews)): ?>
-    <section class="container" id="reviews" style="margin: 3rem auto;">
-        <h2 style="font-size: 2rem; margin-bottom: 2rem; text-align: center;">
-            <i class="fas fa-comments" style="color: var(--primary-color);"></i>
-            <?php _e('home.customer_reviews'); ?>
-        </h2>
+        <!-- Info Section -->
+        <?php 
+        // ดึงข้อมูล hotel settings จาก database
+        $hotelSettings = getHotelSettings();
+        $currentLang = getCurrentLanguage();
+        $aboutDescription = '';
         
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
-            <?php foreach ($reviews as $review): ?>
-            <div style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                    <img src="<?php echo getUserAvatar($review['email']); ?>" 
-                         alt="<?php echo htmlspecialchars($review['first_name']); ?>"
-                         style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;"
-                         onerror="this.src='assets/images/default-avatar.png'">
-                    <div>
-                        <div style="font-weight: bold; color: var(--text-primary);">
-                            <?php echo htmlspecialchars($review['first_name'] . ' ' . substr($review['last_name'], 0, 1)); ?>.
-                        </div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
-                            <?php echo formatDateByLang($review['created_at']); ?>
-                        </div>
-                    </div>
-                    <div style="margin-left: auto;">
-                        <?php echo generateStarRating($review['rating']); ?>
-                    </div>
-                </div>
-                
-                <?php if ($review['title']): ?>
-                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">
-                        <?php echo htmlspecialchars($review['title']); ?>
-                    </h4>
-                <?php endif; ?>
-                
-                <p style="color: var(--text-secondary); line-height: 1.6;">
-                    <?php echo nl2br(htmlspecialchars($review['comment'])); ?>
-                </p>
-            </div>
-            <?php endforeach; ?>
+        // ตรวจสอบว่ามี description ใน database หรือไม่ (รองรับหลายภาษา)
+        if ($currentLang === 'th' && !empty($hotelSettings['description_th'])) {
+            // ถ้ามี description_th ให้ใช้
+            $aboutDescription = $hotelSettings['description_th'];
+        } elseif ($currentLang === 'en' && !empty($hotelSettings['description_en'])) {
+            // ถ้ามี description_en ให้ใช้
+            $aboutDescription = $hotelSettings['description_en'];
+        } elseif (!empty($hotelSettings['description'])) {
+            // ถ้าไม่มี description_th/en แต่มี description เดิม ให้ใช้
+            $aboutDescription = $hotelSettings['description'];
+        } else {
+            // ถ้าไม่มีเลย ให้ใช้ default จาก translation file
+            $aboutDescription = __('home.about_hotel_description');
+        }
+        ?>
+        <div class="info-section">
+            <h3><i class="fas fa-info-circle"></i> <?php _e('home.about_hotel_title'); ?> <?= htmlspecialchars($hotelSettings['hotel_name'] ?? HOTEL_NAME) ?></h3>
+            <p>
+                <?= nl2br(htmlspecialchars($aboutDescription)) ?>
+            </p>
         </div>
-    </section>
-    <?php endif; ?>
 
-<?php include './includes/footer.php'; ?>
+    </div>
+
+    <script>
+        // Auto-update checkout date when checkin changes
+        document.querySelector('input[name="check_in"]').addEventListener('change', function() {
+            const checkIn = new Date(this.value);
+            const checkOut = document.querySelector('input[name="check_out"]');
+            const minCheckOut = new Date(checkIn);
+            minCheckOut.setDate(minCheckOut.getDate() + 1);
+            
+            const minDate = minCheckOut.toISOString().split('T')[0];
+            checkOut.min = minDate;
+            
+            // If current checkout is before new minimum, update it
+            if (checkOut.value && new Date(checkOut.value) <= checkIn) {
+                checkOut.value = minDate;
+            }
+        });
+
+        // Image lazy loading error handler
+        document.querySelectorAll('.room-image img').forEach(img => {
+            img.addEventListener('error', function() {
+                this.style.display = 'none';
+                const placeholder = document.createElement('div');
+                placeholder.className = 'room-image-placeholder';
+                placeholder.innerHTML = '<i class="fas fa-image"></i><p><?php echo addslashes(__('home.no_image')); ?></p>';
+                this.parentElement.appendChild(placeholder);
+            });
+        });
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Flash message auto-hide
+        const flashMessage = document.querySelector('.flash-message');
+        if (flashMessage) {
+            setTimeout(() => {
+                flashMessage.style.opacity = '0';
+                flashMessage.style.transform = 'translateY(-20px)';
+                setTimeout(() => flashMessage.remove(), 300);
+            }, 5000);
+        }
+    </script>
+
+<?php require_once PROJECT_ROOT . '/includes/footer.php'; ?>

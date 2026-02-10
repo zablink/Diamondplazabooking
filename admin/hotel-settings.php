@@ -26,20 +26,41 @@ $messageType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = [
-        'name' => $_POST['name'],
-        'description' => $_POST['description'],
-        'address' => $_POST['address'],
-        'city' => $_POST['city'],
-        'phone' => $_POST['phone'],
-        'email' => $_POST['email'],
+        'name' => $_POST['name'] ?? $_POST['name_th'] ?? '',
+        'name_th' => $_POST['name_th'] ?? '',
+        'name_en' => $_POST['name_en'] ?? '',
+        'name_zh' => $_POST['name_zh'] ?? '',
+        'description' => $_POST['description'] ?? $_POST['description_th'] ?? '',
+        'description_th' => $_POST['description_th'] ?? '',
+        'description_en' => $_POST['description_en'] ?? '',
+        'description_zh' => $_POST['description_zh'] ?? '',
+        'about_description' => $_POST['about_description'] ?? $_POST['about_description_th'] ?? '',
+        'about_description_th' => $_POST['about_description_th'] ?? '',
+        'about_description_en' => $_POST['about_description_en'] ?? '',
+        'about_description_zh' => $_POST['about_description_zh'] ?? '',
+        'address' => $_POST['address'] ?? $_POST['address_th'] ?? '',
+        'address_th' => $_POST['address_th'] ?? '',
+        'address_en' => $_POST['address_en'] ?? '',
+        'address_zh' => $_POST['address_zh'] ?? '',
+        'city' => $_POST['city'] ?? $_POST['city_th'] ?? '',
+        'city_th' => $_POST['city_th'] ?? '',
+        'city_en' => $_POST['city_en'] ?? '',
+        'city_zh' => $_POST['city_zh'] ?? '',
+        'phone' => $_POST['phone'] ?? '',
+        'email' => $_POST['email'] ?? '',
         'amenities' => $_POST['amenities'] ?? []
     ];
+    
+    // Debug: log ข้อมูลที่รับมา
+    error_log("Hotel Settings POST data: " . print_r($data, true));
     
     if ($admin->updateHotelSettings($data)) {
         $message = 'อัปเดตข้อมูลโรงแรมสำเร็จ!';
         $messageType = 'success';
+        // Reload ข้อมูลใหม่
+        $hotel = $admin->getHotelSettings();
     } else {
-        $message = 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล';
+        $message = 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล กรุณาตรวจสอบ Error Log';
         $messageType = 'error';
     }
 }
@@ -81,24 +102,84 @@ $hotel = $admin->getHotelSettings();
                 <div class="card-body">
                     <form method="POST">
                         <div class="form-group">
-                            <label>ชื่อโรงแรม</label>
-                            <input type="text" name="name" value="<?= htmlspecialchars($hotel['hotel_name'] ?? '') ?>" required>
+                            <label>ชื่อโรงแรม <span style="color: red;">*</span></label>
+                            <div style="margin-bottom: 1rem;">
+                                <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">ภาษาไทย</label>
+                                <input type="text" name="name_th" value="<?= htmlspecialchars($hotel['hotel_name_th'] ?? $hotel['hotel_name'] ?? '') ?>" required>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">English</label>
+                                <input type="text" name="name_en" value="<?= htmlspecialchars($hotel['hotel_name_en'] ?? '') ?>">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">中文</label>
+                                <input type="text" name="name_zh" value="<?= htmlspecialchars($hotel['hotel_name_zh'] ?? '') ?>">
+                            </div>
                         </div>
                         
                         <div class="form-group">
-                            <label>คำอธิบาย</label>
-                            <textarea name="description" rows="5"><?= htmlspecialchars($hotel['description'] ?? '') ?></textarea>
+                            <label>คำอธิบายโรงแรม</label>
+                            <div style="margin-bottom: 1rem;">
+                                <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">ภาษาไทย</label>
+                                <textarea name="description_th" rows="5"><?= htmlspecialchars($hotel['description_th'] ?? $hotel['description'] ?? '') ?></textarea>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">English</label>
+                                <textarea name="description_en" rows="5"><?= htmlspecialchars($hotel['description_en'] ?? '') ?></textarea>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">中文</label>
+                                <textarea name="description_zh" rows="5"><?= htmlspecialchars($hotel['description_zh'] ?? '') ?></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>ข้อความ About ใน Footer <small style="color: #666;">(สำหรับแสดงในส่วน Footer)</small></label>
+                            <div style="margin-bottom: 1rem;">
+                                <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">ภาษาไทย</label>
+                                <textarea name="about_description_th" rows="4" placeholder="เราคือแพลตฟอร์มจองโรงแรมออนไลน์ที่ให้บริการโรงแรมคุณภาพทั่วประเทศไทย"><?= htmlspecialchars($hotel['about_description_th'] ?? $hotel['about_description'] ?? '') ?></textarea>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">English</label>
+                                <textarea name="about_description_en" rows="4" placeholder="We are an online hotel booking platform offering quality hotels throughout Thailand"><?= htmlspecialchars($hotel['about_description_en'] ?? '') ?></textarea>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">中文</label>
+                                <textarea name="about_description_zh" rows="4" placeholder="我们是在线酒店预订平台，提供全泰国优质酒店服务"><?= htmlspecialchars($hotel['about_description_zh'] ?? '') ?></textarea>
+                            </div>
                         </div>
                         
                         <div class="form-row">
-                            <div class="form-group">
+                            <div class="form-group" style="grid-column: 1 / -1;">
                                 <label>ที่อยู่</label>
-                                <input type="text" name="address" value="<?= htmlspecialchars($hotel['address'] ?? '') ?>">
+                                <div style="margin-bottom: 1rem;">
+                                    <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">ภาษาไทย</label>
+                                    <input type="text" name="address_th" value="<?= htmlspecialchars($hotel['address_th'] ?? $hotel['address'] ?? '') ?>">
+                                </div>
+                                <div style="margin-bottom: 1rem;">
+                                    <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">English</label>
+                                    <input type="text" name="address_en" value="<?= htmlspecialchars($hotel['address_en'] ?? '') ?>">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">中文</label>
+                                    <input type="text" name="address_zh" value="<?= htmlspecialchars($hotel['address_zh'] ?? '') ?>">
+                                </div>
                             </div>
                             
-                            <div class="form-group">
+                            <div class="form-group" style="grid-column: 1 / -1;">
                                 <label>เมือง</label>
-                                <input type="text" name="city" value="<?= htmlspecialchars($hotel['city'] ?? '') ?>">
+                                <div style="margin-bottom: 1rem;">
+                                    <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">ภาษาไทย</label>
+                                    <input type="text" name="city_th" value="<?= htmlspecialchars($hotel['city_th'] ?? $hotel['city'] ?? '') ?>">
+                                </div>
+                                <div style="margin-bottom: 1rem;">
+                                    <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">English</label>
+                                    <input type="text" name="city_en" value="<?= htmlspecialchars($hotel['city_en'] ?? '') ?>">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">中文</label>
+                                    <input type="text" name="city_zh" value="<?= htmlspecialchars($hotel['city_zh'] ?? '') ?>">
+                                </div>
                             </div>
                         </div>
                         

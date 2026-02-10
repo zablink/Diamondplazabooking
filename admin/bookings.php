@@ -49,6 +49,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $messageType = 'error';
             }
             break;
+            
+        case 'close_room':
+            if (!empty($_POST['room_type_id'])) {
+                if ($admin->closeRoomQuickly($_POST['room_type_id'])) {
+                    $message = 'ปิดห้องพักสำเร็จ!';
+                    $messageType = 'success';
+                } else {
+                    $message = 'เกิดข้อผิดพลาดในการปิดห้องพัก';
+                    $messageType = 'error';
+                }
+            } else {
+                $message = 'ไม่พบข้อมูลห้องพัก';
+                $messageType = 'error';
+            }
+            break;
+            
+        case 'open_room':
+            if (!empty($_POST['room_type_id'])) {
+                if ($admin->openRoom($_POST['room_type_id'])) {
+                    $message = 'เปิดห้องพักสำเร็จ!';
+                    $messageType = 'success';
+                } else {
+                    $message = 'เกิดข้อผิดพลาดในการเปิดห้องพัก';
+                    $messageType = 'error';
+                }
+            } else {
+                $message = 'ไม่พบข้อมูลห้องพัก';
+                $messageType = 'error';
+            }
+            break;
     }
 }
 
@@ -145,7 +175,8 @@ $bookings = $admin->getAllBookings($filters);
                                     <th>Check-in</th>
                                     <th>Check-out</th>
                                     <th>ราคา</th>
-                                    <th>สถานะ</th>
+                                    <th>สถานะการจอง</th>
+                                    <th>สถานะห้อง</th>
                                     <th>จัดการ</th>
                                 </tr>
                             </thead>
@@ -163,10 +194,29 @@ $bookings = $admin->getAllBookings($filters);
                                                 <small><?= htmlspecialchars($booking['email']) ?></small><br>
                                                 <small><i class="fas fa-phone"></i> <?= htmlspecialchars($booking['phone'] ?? '-') ?></small>
                                             </td>
-                                            <td><?= htmlspecialchars($booking['room_type_name']) ?></td>
-                                            <td><?= date('d/m/Y', strtotime($booking['check_in_date'])) ?></td>
-                                            <td><?= date('d/m/Y', strtotime($booking['check_out_date'])) ?></td>
-                                            <td><strong>฿<?= number_format($booking['total_price'], 0) ?></strong></td>
+                                            <td>
+                                                <strong><?= htmlspecialchars($booking['room_type_name'] ?? 'N/A') ?></strong>
+                                                <?php if (!empty($booking['room_type_id'])): ?>
+                                                    <br><small class="text-muted">ID: <?= $booking['room_type_id'] ?></small>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <?php 
+                                                $checkIn = $booking['check_in_date'] ?? $booking['check_in'] ?? '';
+                                                echo $checkIn ? date('d/m/Y', strtotime($checkIn)) : '-';
+                                                ?>
+                                            </td>
+                                            <td>
+                                                <?php 
+                                                $checkOut = $booking['check_out_date'] ?? $booking['check_out'] ?? '';
+                                                echo $checkOut ? date('d/m/Y', strtotime($checkOut)) : '-';
+                                                ?>
+                                            </td>
+                                            <td>
+                                                <strong style="color: #28a745; font-size: 16px;">
+                                                    ฿<?= number_format($booking['total_price'] ?? $booking['total_amount'] ?? 0, 0) ?>
+                                                </strong>
+                                            </td>
                                             <td>
                                                 <?php
                                                 $statusClass = [
@@ -222,13 +272,47 @@ $bookings = $admin->getAllBookings($filters);
         }
         
         function updateStatus(id, status) {
-            if (confirm('ต้องการเปลี่ยนสถานะเป็น "' + status + '"?')) {
+            const statusText = {
+                'pending': 'รอยืนยัน',
+                'confirmed': 'ยืนยันแล้ว',
+                'checked_in': 'เช็คอินแล้ว',
+                'completed': 'เสร็จสิ้น',
+                'cancelled': 'ยกเลิก'
+            };
+            
+            if (confirm('ต้องการเปลี่ยนสถานะการจองเป็น "' + (statusText[status] || status) + '"?')) {
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.innerHTML = `
                     <input type="hidden" name="action" value="update_status">
                     <input type="hidden" name="booking_id" value="${id}">
                     <input type="hidden" name="status" value="${status}">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+        
+        function closeRoomQuickly(roomTypeId, roomName) {
+            if (confirm('ต้องการปิดห้องพัก "' + roomName + '" แบบด่วน?\n\nห้องนี้จะไม่สามารถจองได้จนกว่าจะเปิดอีกครั้ง')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="close_room">
+                    <input type="hidden" name="room_type_id" value="${roomTypeId}">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+        
+        function openRoom(roomTypeId, roomName) {
+            if (confirm('ต้องการเปิดห้องพัก "' + roomName + '" อีกครั้ง?')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="open_room">
+                    <input type="hidden" name="room_type_id" value="${roomTypeId}">
                 `;
                 document.body.appendChild(form);
                 form.submit();

@@ -4,9 +4,150 @@
  */
 
 /**
+ * Get Hotel Name from settings or fallback to SITE_NAME
+ * รองรับหลายภาษา
+ */
+function getHotelName($lang = null) {
+    static $hotelNames = [];
+    
+    if ($lang === null) {
+        $lang = getCurrentLanguage();
+    }
+    
+    if (!isset($hotelNames[$lang])) {
+        try {
+            require_once PROJECT_ROOT . '/modules/admin/AdminClass.php';
+            $admin = new Admin();
+            $settings = $admin->getHotelSettings($lang);
+            $langKey = 'hotel_name_' . $lang;
+            $hotelNames[$lang] = !empty($settings[$langKey]) ? $settings[$langKey] : 
+                                (!empty($settings['hotel_name']) ? $settings['hotel_name'] : 
+                                (defined('SITE_NAME') ? SITE_NAME : 'Hotel'));
+        } catch (Exception $e) {
+            $hotelNames[$lang] = defined('SITE_NAME') ? SITE_NAME : 'Hotel';
+        }
+    }
+    
+    return $hotelNames[$lang];
+}
+
+/**
+ * Get Hotel Settings (cached)
+ * รองรับหลายภาษา
+ */
+function getHotelSettings($lang = null) {
+    static $settingsCache = [];
+    
+    if ($lang === null) {
+        $lang = getCurrentLanguage();
+    }
+    
+    if (!isset($settingsCache[$lang])) {
+        try {
+            require_once PROJECT_ROOT . '/modules/admin/AdminClass.php';
+            $admin = new Admin();
+            $settings = $admin->getHotelSettings($lang);
+            $settingsCache[$lang] = $settings;
+        } catch (Exception $e) {
+            $settingsCache[$lang] = [
+                'hotel_name' => defined('SITE_NAME') ? SITE_NAME : 'Hotel',
+                'description' => '',
+                'address' => '',
+                'city' => '',
+                'phone' => '',
+                'email' => ''
+            ];
+        }
+    }
+    
+    return $settingsCache[$lang];
+}
+
+/**
+ * Get Hotel Description (multilingual)
+ */
+function getHotelDescription($lang = null) {
+    if ($lang === null) {
+        $lang = getCurrentLanguage();
+    }
+    $settings = getHotelSettings($lang);
+    $langKey = 'description_' . $lang;
+    return !empty($settings[$langKey]) ? $settings[$langKey] : 
+           (!empty($settings['description']) ? $settings['description'] : '');
+}
+
+/**
+ * Get Amenity Name (multilingual)
+ * ดึงชื่อสิ่งอำนวยความสะดวกตามภาษา
+ */
+function getAmenityName($amenityName, $lang = null) {
+    if ($lang === null) {
+        $lang = getCurrentLanguage();
+    }
+    
+    try {
+        require_once PROJECT_ROOT . '/includes/Database.php';
+        $db = Database::getInstance();
+        $conn = $db->getConnection();
+        
+        // ตรวจสอบว่ามีตาราง bk_amenities หรือไม่
+        $checkTable = $conn->query("SHOW TABLES LIKE 'bk_amenities'");
+        if ($checkTable->rowCount() == 0) {
+            return $amenityName; // ถ้าไม่มีตาราง ให้ return ชื่อเดิม
+        }
+        
+        // ค้นหา amenity โดยใช้ชื่อภาษาไทยเป็นหลัก
+        $stmt = $conn->prepare("SELECT amenity_name_th, amenity_name_en, amenity_name_zh, amenity_name FROM bk_amenities WHERE amenity_name = :name OR amenity_name_th = :name LIMIT 1");
+        $stmt->execute([':name' => $amenityName]);
+        $amenity = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($amenity) {
+            $langKey = 'amenity_name_' . $lang;
+            if (!empty($amenity[$langKey])) {
+                return $amenity[$langKey];
+            }
+            // Fallback to Thai
+            if (!empty($amenity['amenity_name_th'])) {
+                return $amenity['amenity_name_th'];
+            }
+            // Fallback to original name
+            if (!empty($amenity['amenity_name'])) {
+                return $amenity['amenity_name'];
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Error getting amenity name: " . $e->getMessage());
+    }
+    
+    return $amenityName;
+}
+
+/**
  * Redirect to a page
+ * รองรับ URL ที่มีภาษา
  */
 function redirect($url) {
+    // ถ้า URL ไม่มีภาษาและเป็น relative path ให้เพิ่มภาษา
+    if (strpos($url, 'http://') !== 0 && strpos($url, 'https://') !== 0 && strpos($url, '/') !== 0) {
+        // ตรวจสอบว่ามีฟังก์ชัน url() หรือไม่
+        if (function_exists('url')) {
+            // แยก path และ query string
+            $parts = parse_url($url);
+            $path = $parts['path'] ?? $url;
+            $query = isset($parts['query']) ? '?' . $parts['query'] : '';
+            
+            // ใช้ฟังก์ชัน url() เพื่อสร้าง URL ที่มีภาษา
+            parse_str($parts['query'] ?? '', $params);
+            $url = url($path, $params);
+        } else {
+            // Fallback: เพิ่มภาษาเอง
+            $lang = isset($_SESSION['lang']) ? $_SESSION['lang'] : 'th';
+            if (strpos($url, '/booking/') !== 0) {
+                $url = '/booking/' . $lang . '/' . $url;
+            }
+        }
+    }
+    
     session_write_close();
     header("Location: $url");
     exit();
@@ -182,3 +323,9 @@ function isDateAvailable($checkIn, $checkOut) {
 function getUserAvatar($email) {
     return 'https://www.gravatar.com/avatar/' . md5(strtolower(trim($email))) . '?d=identicon&s=100';
 }
+
+/**
+ * สร้าง URL ที่มีภาษา
+ * ฟังก์ชัน url() ถูก define ใน lang.php
+ * ไม่ต้อง declare ที่นี่เพื่อหลีกเลี่ยงการ declare ซ้ำ
+ */

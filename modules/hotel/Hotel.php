@@ -77,6 +77,20 @@ class Hotel {
      */
     public function getRoomTypeById($roomTypeId) {
         try {
+            // เพิ่ม field description_th, description_en, bed_type_th, bed_type_en ถ้ายังไม่มี
+            try {
+                $checkCol = $this->conn->query("SHOW COLUMNS FROM bk_room_types LIKE 'description_th'");
+                if ($checkCol->rowCount() == 0) {
+                    $this->conn->exec("ALTER TABLE bk_room_types ADD COLUMN description_th TEXT AFTER description");
+                    $this->conn->exec("ALTER TABLE bk_room_types ADD COLUMN description_en TEXT AFTER description_th");
+                    $this->conn->exec("ALTER TABLE bk_room_types ADD COLUMN bed_type_th VARCHAR(100) AFTER bed_type");
+                    $this->conn->exec("ALTER TABLE bk_room_types ADD COLUMN bed_type_en VARCHAR(100) AFTER bed_type_th");
+                    error_log("Added description_th, description_en, bed_type_th, bed_type_en columns to bk_room_types");
+                }
+            } catch (Exception $e) {
+                error_log("Error checking/adding columns: " . $e->getMessage());
+            }
+            
             $stmt = $this->conn->prepare("
                 SELECT rt.*, h.hotel_name, h.hotel_id
                 FROM bk_room_types rt
@@ -322,6 +336,143 @@ class Hotel {
         } catch (PDOException $e) {
             error_log("Error getting room amenities: " . $e->getMessage());
             return [];
+        }
+    }
+    
+    /**
+     * ค้นหาโรงแรมตามเงื่อนไข
+     */
+    public function searchHotels($city = '', $checkIn = '', $checkOut = '', $guests = 2, $page = 1) {
+        try {
+            $itemsPerPage = defined('ITEMS_PER_PAGE') ? ITEMS_PER_PAGE : 12;
+            $offset = ($page - 1) * $itemsPerPage;
+            
+            // Build base query
+            $sql = "
+                SELECT DISTINCT h.*,
+                    (SELECT MIN(rt.base_price) 
+                     FROM bk_room_types rt 
+                     WHERE rt.hotel_id = h.hotel_id 
+                     AND rt.status = 'available'
+                     AND rt.max_occupancy >= ?) as min_price,
+                    (SELECT AVG(r.rating) 
+                     FROM bk_reviews r 
+                     WHERE r.hotel_id = h.hotel_id 
+                     AND r.status = 'approved') as avg_rating,
+                    (SELECT COUNT(*) 
+                     FROM bk_reviews r 
+                     WHERE r.hotel_id = h.hotel_id 
+                     AND r.status = 'approved') as review_count
+                FROM bk_hotels h
+                WHERE h.status = 'active'
+            ";
+            
+            $params = [$guests];
+            
+            // Filter by city
+            if (!empty($city)) {
+                $sql .= " AND h.city LIKE ?";
+                $params[] = '%' . $city . '%';
+            }
+            
+            // Filter by availability if dates are provided
+            if (!empty($checkIn) && !empty($checkOut)) {
+                $sql .= " AND EXISTS (
+                    SELECT 1 FROM bk_room_types rt
+                    WHERE rt.hotel_id = h.hotel_id
+                    AND rt.status = 'available'
+                    AND rt.max_occupancy >= ?
+                    AND rt.total_rooms > COALESCE((
+                        SELECT SUM(b.rooms_booked)
+                        FROM bk_bookings b
+                        WHERE b.room_type_id = rt.room_type_id
+                        AND b.status NOT IN ('cancelled', 'rejected')
+                        AND (
+                            (b.check_in_date <= ? AND b.check_out_date > ?)
+                            OR (b.check_in_date < ? AND b.check_out_date >= ?)
+                            OR (b.check_in_date >= ? AND b.check_out_date <= ?)
+                        )
+                    ), 0)
+                )";
+                $params[] = $guests;
+                $params[] = $checkIn;
+                $params[] = $checkIn;
+                $params[] = $checkOut;
+                $params[] = $checkOut;
+                $params[] = $checkIn;
+                $params[] = $checkOut;
+            }
+            
+            $sql .= " ORDER BY h.star_rating DESC, min_price ASC";
+            $sql .= " LIMIT ? OFFSET ?";
+            $params[] = $itemsPerPage;
+            $params[] = $offset;
+            
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll();
+            
+        } catch (PDOException $e) {
+            error_log("Error searching hotels: " . $e->getMessage());
+            return [];
+        }
+    }
+    
+    /**
+     * นับจำนวนโรงแรมทั้งหมดที่ตรงกับเงื่อนไขการค้นหา
+     */
+    public function getTotalHotels($city = '', $checkIn = '', $checkOut = '', $guests = 2) {
+        try {
+            $sql = "
+                SELECT COUNT(DISTINCT h.hotel_id) as total
+                FROM bk_hotels h
+                WHERE h.status = 'active'
+            ";
+            
+            $params = [];
+            
+            // Filter by city
+            if (!empty($city)) {
+                $sql .= " AND h.city LIKE ?";
+                $params[] = '%' . $city . '%';
+            }
+            
+            // Filter by availability if dates are provided
+            if (!empty($checkIn) && !empty($checkOut)) {
+                $sql .= " AND EXISTS (
+                    SELECT 1 FROM bk_room_types rt
+                    WHERE rt.hotel_id = h.hotel_id
+                    AND rt.status = 'available'
+                    AND rt.max_occupancy >= ?
+                    AND rt.total_rooms > COALESCE((
+                        SELECT SUM(b.rooms_booked)
+                        FROM bk_bookings b
+                        WHERE b.room_type_id = rt.room_type_id
+                        AND b.status NOT IN ('cancelled', 'rejected')
+                        AND (
+                            (b.check_in_date <= ? AND b.check_out_date > ?)
+                            OR (b.check_in_date < ? AND b.check_out_date >= ?)
+                            OR (b.check_in_date >= ? AND b.check_out_date <= ?)
+                        )
+                    ), 0)
+                )";
+                $params[] = $guests;
+                $params[] = $checkIn;
+                $params[] = $checkIn;
+                $params[] = $checkOut;
+                $params[] = $checkOut;
+                $params[] = $checkIn;
+                $params[] = $checkOut;
+            }
+            
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute($params);
+            $result = $stmt->fetch();
+            return intval($result['total'] ?? 0);
+            
+        } catch (PDOException $e) {
+            error_log("Error getting total hotels: " . $e->getMessage());
+            return 0;
         }
     }
 }

@@ -1,0 +1,57 @@
+-- Create Email Templates Table
+CREATE TABLE IF NOT EXISTS `bk_email_templates` (
+    `template_id` INT PRIMARY KEY AUTO_INCREMENT,
+    `template_key` VARCHAR(100) NOT NULL UNIQUE,
+    `template_name` VARCHAR(255) NOT NULL,
+    `content_th` TEXT,
+    `content_en` TEXT,
+    `content_zh` TEXT,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_template_key (`template_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Insert default email template texts
+INSERT INTO `bk_email_templates` (`template_key`, `template_name`, `content_th`, `content_en`, `content_zh`) VALUES
+('title', 'หัวข้ออีเมล', 'ยืนยันการจองห้องพัก', 'Booking Confirmation', '预订确认'),
+('booking_success', 'ข้อความสำเร็จ', 'การจองสำเร็จ', 'Booking Successful', '预订成功'),
+('booking_reference_label', 'ป้ายรหัสการจอง', 'รหัสการจอง', 'Booking Reference', '预订编号'),
+('booking_details', 'รายละเอียดการจอง', 'รายละเอียดการจอง', 'Booking Details', '预订详情'),
+('room_type', 'ประเภทห้อง', 'ประเภทห้อง', 'Room Type', '房型'),
+('rooms', 'ห้อง', 'ห้อง', 'rooms', '间'),
+('check_in', 'วันเช็คอิน', 'วันเช็คอิน', 'Check-in Date', '入住日期'),
+('check_out', 'วันเช็คเอาท์', 'วันเช็คเอาท์', 'Check-out Date', '退房日期'),
+('nights', 'คืน', 'คืน', 'nights', '晚'),
+('guests', 'ผู้เข้าพัก', 'ผู้เข้าพัก', 'Guests', '住客'),
+('adults', 'ผู้ใหญ่', 'ผู้ใหญ่', 'adults', '成人'),
+('children', 'เด็ก', 'เด็ก', 'children', '儿童'),
+('guest_info', 'ข้อมูลผู้เข้าพัก', 'ข้อมูลผู้เข้าพัก', 'Guest Information', '住客信息'),
+('full_name', 'ชื่อ-นามสกุล', 'ชื่อ-นามสกุล', 'Full Name', '姓名'),
+('email', 'อีเมล', 'อีเมล', 'Email', '邮箱'),
+('phone', 'เบอร์โทรศัพท์', 'เบอร์โทรศัพท์', 'Phone', '电话'),
+('payment_summary', 'สรุปการชำระเงิน', 'สรุปการชำระเงิน', 'Payment Summary', '付款摘要'),
+('room_price', 'ค่าห้องพัก', 'ค่าห้องพัก', 'Room Price', '房价'),
+('breakfast_price', 'ค่าอาหารเช้า', 'ค่าอาหารเช้า', 'Breakfast Price', '早餐价格'),
+('tax', 'ภาษีมูลค่าเพิ่ม', 'ภาษีมูลค่าเพิ่ม (7%)', 'VAT (7%)', '增值税 (7%)'),
+('service_charge', 'ค่าบริการ', 'ค่าบริการ (10%)', 'Service Charge (10%)', '服务费 (10%)'),
+('total_amount', 'ยอดรวมทั้งหมด', 'ยอดรวมทั้งหมด', 'Total Amount', '总金额'),
+('payment_method', 'วิธีการชำระเงิน', 'วิธีการชำระเงิน', 'Payment Method', '付款方式'),
+('payment_counter', 'ชำระเงินที่เคาน์เตอร์', 'กรุณาชำระเงินที่หน้าเคาน์เตอร์ของโรงแรม', 'Please pay at the hotel counter', '请在酒店前台付款'),
+('payment_qr', 'ชำระเงินผ่าน QR', 'หรือสแกน QR Code ด้านล่างเพื่อชำระเงินผ่าน PromptPay ได้ทันที', 'or scan the QR Code below to pay via PromptPay immediately', '或扫描下方二维码通过 PromptPay 立即付款'),
+('scan_qr', 'สแกน QR Code', 'สแกน QR Code เพื่อชำระเงินผ่าน PromptPay', 'Scan QR Code to pay via PromptPay', '扫描二维码通过 PromptPay 付款'),
+('amount', 'ยอดเงิน', 'ยอดเงิน', 'Amount', '金额'),
+('note', 'หมายเหตุ', 'หมายเหตุ', 'Note', '备注'),
+('note_text', 'ข้อความหมายเหตุ', 'กรุณานำรหัสการจอง', 'Please bring your booking reference', '请携带您的预订编号'),
+('note_show', 'แสดงที่เคาน์เตอร์', 'มาแสดงที่หน้าเคาน์เตอร์เมื่อเช็คอิน', 'to show at the counter when checking in', '在办理入住时向前台出示'),
+('important_info', 'ข้อมูลสำคัญ', 'ข้อมูลสำคัญ', 'Important Information', '重要信息'),
+('check_in_time', 'เวลาเช็คอิน/เอาท์', 'เวลาเช็คอิน: 14:00 น. / เช็คเอาท์: 12:00 น.', 'Check-in time: 14:00 / Check-out time: 12:00', '入住时间：14:00 / 退房时间：12:00'),
+('arrival_time', 'เวลามาถึง', 'กรุณามาถึงก่อนเวลา 18:00 น. หากมาถึงช้ากรุณาแจ้งล่วงหน้า', 'Please arrive before 18:00. If arriving late, please notify in advance', '请在 18:00 前到达。如晚到，请提前通知'),
+('bring_reference', 'นำรหัสการจอง', 'กรุณานำรหัสการจองมาด้วยเมื่อเช็คอิน', 'Please bring your booking reference when checking in', '办理入住时请携带您的预订编号'),
+('cancel_info', 'ข้อมูลการยกเลิก', 'หากต้องการยกเลิกหรือเปลี่ยนแปลงการจอง กรุณาติดต่อโรงแรมล่วงหน้า', 'If you need to cancel or modify your booking, please contact the hotel in advance', '如需取消或修改预订，请提前联系酒店'),
+('thank_you', 'ขอบคุณ', 'ขอบคุณที่เลือกใช้บริการของเรา', 'Thank you for choosing our service', '感谢您选择我们的服务'),
+('qr_code_not_available', 'QR Code ไม่พร้อมใช้งาน', 'QR Code ไม่พร้อมใช้งาน', 'QR Code not available', '二维码不可用')
+ON DUPLICATE KEY UPDATE 
+    `template_name` = VALUES(`template_name`),
+    `content_th` = VALUES(`content_th`),
+    `content_en` = VALUES(`content_en`),
+    `content_zh` = VALUES(`content_zh`);

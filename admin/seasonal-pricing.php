@@ -34,16 +34,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     switch ($action) {
         case 'add_season':
             try {
-                $sql = "INSERT INTO bk_seasonal_prices 
-                        (room_type_id, season_name, start_date, end_date, 
+                // เพิ่ม multilingual columns ถ้ายังไม่มี
+                try {
+                    $languages = ['th', 'en', 'zh'];
+                    foreach ($languages as $lang) {
+                        $checkCol = $conn->query("SHOW COLUMNS FROM bk_seasonal_rates LIKE 'season_name_" . $lang . "'");
+                        if ($checkCol->rowCount() == 0) {
+                            $conn->exec("ALTER TABLE bk_seasonal_rates ADD COLUMN season_name_" . $lang . " VARCHAR(255) AFTER season_name");
+                        }
+                    }
+                } catch (Exception $e) {
+                    error_log("Error adding multilingual columns: " . $e->getMessage());
+                }
+                
+                // เพิ่มคอลัมน์ price_modifier_type และ price_modifier_value ถ้ายังไม่มี
+                try {
+                    $checkCol1 = $conn->query("SHOW COLUMNS FROM bk_seasonal_rates LIKE 'price_modifier_type'");
+                    if ($checkCol1->rowCount() == 0) {
+                        $conn->exec("ALTER TABLE bk_seasonal_rates ADD COLUMN price_modifier_type ENUM('percentage', 'fixed') AFTER end_date");
+                    }
+                    $checkCol2 = $conn->query("SHOW COLUMNS FROM bk_seasonal_rates LIKE 'price_modifier_value'");
+                    if ($checkCol2->rowCount() == 0) {
+                        $conn->exec("ALTER TABLE bk_seasonal_rates ADD COLUMN price_modifier_value DECIMAL(10,2) AFTER price_modifier_type");
+                    }
+                } catch (Exception $e) {
+                    error_log("Error adding price modifier columns: " . $e->getMessage());
+                }
+                
+                $seasonNameTh = $_POST['season_name_th'] ?? '';
+                $seasonNameEn = $_POST['season_name_en'] ?? '';
+                $seasonNameZh = $_POST['season_name_zh'] ?? '';
+                $seasonName = $seasonNameTh ?: $_POST['season_name'] ?? '';
+                
+                $sql = "INSERT INTO bk_seasonal_rates 
+                        (room_type_id, season_name, season_name_th, season_name_en, season_name_zh, start_date, end_date, 
                          price_modifier_type, price_modifier_value, priority, is_active)
-                        VALUES (:room_type_id, :season_name, :start_date, :end_date,
+                        VALUES (:room_type_id, :season_name, :season_name_th, :season_name_en, :season_name_zh, :start_date, :end_date,
                                 :price_type, :price_value, :priority, :is_active)";
                 
                 $stmt = $conn->prepare($sql);
                 $stmt->execute([
                     'room_type_id' => $_POST['room_type_id'],
-                    'season_name' => $_POST['season_name'],
+                    'season_name' => $seasonName,
+                    'season_name_th' => $seasonNameTh,
+                    'season_name_en' => $seasonNameEn,
+                    'season_name_zh' => $seasonNameZh,
                     'start_date' => $_POST['start_date'],
                     'end_date' => $_POST['end_date'],
                     'price_type' => $_POST['price_modifier_type'],
@@ -63,26 +98,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
         case 'update_season':
             try {
-                $sql = "UPDATE bk_seasonal_prices SET
+                // เพิ่มคอลัมน์ price_modifier_type และ price_modifier_value ถ้ายังไม่มี
+                try {
+                    $checkCol1 = $conn->query("SHOW COLUMNS FROM bk_seasonal_rates LIKE 'price_modifier_type'");
+                    if ($checkCol1->rowCount() == 0) {
+                        $conn->exec("ALTER TABLE bk_seasonal_rates ADD COLUMN price_modifier_type ENUM('percentage', 'fixed') AFTER end_date");
+                    }
+                    $checkCol2 = $conn->query("SHOW COLUMNS FROM bk_seasonal_rates LIKE 'price_modifier_value'");
+                    if ($checkCol2->rowCount() == 0) {
+                        $conn->exec("ALTER TABLE bk_seasonal_rates ADD COLUMN price_modifier_value DECIMAL(10,2) AFTER price_modifier_type");
+                    }
+                } catch (Exception $e) {
+                    error_log("Error adding price modifier columns: " . $e->getMessage());
+                }
+                
+                $seasonNameTh = $_POST['season_name_th'] ?? '';
+                $seasonNameEn = $_POST['season_name_en'] ?? '';
+                $seasonNameZh = $_POST['season_name_zh'] ?? '';
+                $seasonName = $seasonNameTh ?: $_POST['season_name'] ?? '';
+                
+                $sql = "UPDATE bk_seasonal_rates SET
                         season_name = :season_name,
+                        season_name_th = :season_name_th,
+                        season_name_en = :season_name_en,
+                        season_name_zh = :season_name_zh,
                         start_date = :start_date,
                         end_date = :end_date,
                         price_modifier_type = :price_type,
                         price_modifier_value = :price_value,
                         priority = :priority,
                         is_active = :is_active
-                        WHERE price_id = :price_id";
+                        WHERE seasonal_rate_id = :seasonal_rate_id";
                 
                 $stmt = $conn->prepare($sql);
                 $stmt->execute([
-                    'season_name' => $_POST['season_name'],
+                    'season_name' => $seasonName,
+                    'season_name_th' => $seasonNameTh,
+                    'season_name_en' => $seasonNameEn,
+                    'season_name_zh' => $seasonNameZh,
                     'start_date' => $_POST['start_date'],
                     'end_date' => $_POST['end_date'],
                     'price_type' => $_POST['price_modifier_type'],
                     'price_value' => $_POST['price_modifier_value'],
                     'priority' => $_POST['priority'],
                     'is_active' => isset($_POST['is_active']) ? 1 : 0,
-                    'price_id' => $_POST['price_id']
+                    'seasonal_rate_id' => $_POST['seasonal_rate_id']
                 ]);
                 
                 $message = 'อัปเดตฤดูกาลสำเร็จ!';
@@ -96,9 +156,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
         case 'delete_season':
             try {
-                $sql = "DELETE FROM bk_seasonal_prices WHERE price_id = :price_id";
+                $sql = "DELETE FROM bk_seasonal_rates WHERE seasonal_rate_id = :seasonal_rate_id";
                 $stmt = $conn->prepare($sql);
-                $stmt->execute(['price_id' => $_POST['price_id']]);
+                $stmt->execute(['seasonal_rate_id' => $_POST['seasonal_rate_id']]);
                 
                 $message = 'ลบฤดูกาลสำเร็จ!';
                 $messageType = 'success';
@@ -134,15 +194,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// ดึงข้อมูล room types
-$roomTypes = $db->resultSet("SELECT * FROM bk_room_types WHERE status = 'active' ORDER BY room_type_name");
+// ดึงข้อมูล room types (แสดงทุก status เพื่อให้สามารถจัดการได้)
+$roomTypes = $db->resultSet("SELECT * FROM bk_room_types ORDER BY room_type_name");
+
+// Helper function สำหรับดึงชื่อตามภาษา
+function getSeasonName($season, $lang = null) {
+    if ($lang === null) {
+        $lang = $_SESSION['lang'] ?? 'th';
+    }
+    $langKey = 'season_name_' . $lang;
+    if (isset($season[$langKey]) && !empty($season[$langKey])) {
+        return $season[$langKey];
+    }
+    // Fallback to Thai or default name
+    return $season['season_name_th'] ?? $season['season_name'] ?? '';
+}
 
 // ดึงข้อมูล seasonal prices
 $selectedRoomType = $_GET['room_type_id'] ?? ($roomTypes[0]['room_type_id'] ?? null);
 $seasonalPrices = [];
 if ($selectedRoomType) {
     $seasonalPrices = $db->resultSet(
-        "SELECT * FROM bk_seasonal_prices 
+        "SELECT * FROM bk_seasonal_rates 
          WHERE room_type_id = :room_type_id 
          ORDER BY start_date, priority DESC",
         ['room_type_id' => $selectedRoomType]
@@ -154,8 +227,9 @@ if ($selectedRoomType) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>จัดการราคาตามฤดูกาล - Admin</title>
+    <title>จัดการราคาตามฤดูกาล - Admin Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/admin-style.css">
     <style>
         * {
             margin: 0;
@@ -464,6 +538,12 @@ if ($selectedRoomType) {
     </style>
 </head>
 <body>
+    <?php include 'includes/sidebar.php'; ?>
+    
+    <div class="main-content">
+        <?php include 'includes/header.php'; ?>
+        
+        <div class="content-wrapper">
     <div class="container">
         <div class="header">
             <h1><i class="fas fa-calendar-alt"></i> จัดการราคาและอาหารเช้า</h1>
@@ -493,13 +573,17 @@ if ($selectedRoomType) {
                 <div class="room-selector">
                     <label><strong>เลือกประเภทห้อง:</strong></label>
                     <select onchange="window.location.href='?room_type_id='+this.value">
-                        <?php foreach ($roomTypes as $room): ?>
-                            <option value="<?= $room['room_type_id'] ?>" 
-                                    <?= $selectedRoomType == $room['room_type_id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($room['room_type_name']) ?> 
-                                (฿<?= number_format($room['base_price'], 0) ?>)
-                            </option>
-                        <?php endforeach; ?>
+                        <?php if (empty($roomTypes)): ?>
+                            <option value="">ไม่มีข้อมูลห้องพัก</option>
+                        <?php else: ?>
+                            <?php foreach ($roomTypes as $room): ?>
+                                <option value="<?= $room['room_type_id'] ?>" 
+                                        <?= $selectedRoomType == $room['room_type_id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($room['room_type_name']) ?> 
+                                    (฿<?= number_format($room['base_price'], 0) ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </select>
                 </div>
             </div>
@@ -513,8 +597,21 @@ if ($selectedRoomType) {
                     
                     <div class="form-group">
                         <label>ชื่อฤดูกาล <span style="color: red;">*</span></label>
-                        <input type="text" name="season_name" 
-                               placeholder="เช่น High Season, Low Season, สงกรานต์" required>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">ภาษาไทย</label>
+                            <input type="text" name="season_name_th" 
+                                   placeholder="เช่น High Season, Low Season, สงกรานต์" required>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">English</label>
+                            <input type="text" name="season_name_en" 
+                                   placeholder="e.g. High Season, Low Season">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.9rem; color: #666; display: block; margin-bottom: 0.5rem;">中文</label>
+                            <input type="text" name="season_name_zh" 
+                                   placeholder="例如：旺季、淡季">
+                        </div>
                         <p class="help-text">ตั้งชื่อที่เข้าใจง่าย จะแสดงในระบบและรายงาน</p>
                     </div>
                     
@@ -624,7 +721,7 @@ if ($selectedRoomType) {
                                 ?>
                                     <tr>
                                         <td>
-                                            <strong><?= htmlspecialchars($season['season_name']) ?></strong>
+                                            <strong><?= htmlspecialchars(getSeasonName($season)) ?></strong>
                                         </td>
                                         <td>
                                             <?= date('d/m/Y', strtotime($season['start_date'])) ?> - 
@@ -665,7 +762,7 @@ if ($selectedRoomType) {
                                                 <form method="POST" style="display: inline;" 
                                                       onsubmit="return confirm('ต้องการลบฤดูกาลนี้?')">
                                                     <input type="hidden" name="action" value="delete_season">
-                                                    <input type="hidden" name="price_id" value="<?= $season['price_id'] ?>">
+                                                    <input type="hidden" name="seasonal_rate_id" value="<?= $season['seasonal_rate_id'] ?? $season['price_id'] ?>">
                                                     <button type="submit" class="btn btn-danger" style="padding: 8px 16px;">
                                                         <i class="fas fa-trash"></i> ลบ
                                                     </button>
@@ -770,7 +867,14 @@ if ($selectedRoomType) {
             // TODO: แสดง modal หรือ form สำหรับแก้ไข
             // ใช้ sweet alert หรือ modal library
             alert('Feature แก้ไขจะเพิ่มเร็วๆ นี้\n\nข้อมูลปัจจุบัน:\n' + JSON.stringify(season, null, 2));
+            
+            // ถ้ามี modal สำหรับแก้ไข ให้เพิ่มโค้ดนี้:
+            // document.getElementById('edit_season_name_th').value = season.season_name_th || season.season_name || '';
+            // document.getElementById('edit_season_name_en').value = season.season_name_en || '';
+            // document.getElementById('edit_season_name_zh').value = season.season_name_zh || '';
         }
     </script>
+        </div>
+    </div>
 </body>
 </html>

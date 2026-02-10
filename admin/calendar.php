@@ -39,8 +39,16 @@ $bookings = $admin->getAllBookings([
 // Group bookings by date
 $bookingsByDate = [];
 foreach ($bookings as $booking) {
-    $checkIn = new DateTime($booking['check_in_date']);
-    $checkOut = new DateTime($booking['check_out_date']);
+    // ใช้ check_in และ check_out แทน check_in_date และ check_out_date
+    $checkInDate = $booking['check_in'] ?? $booking['check_in_date'] ?? null;
+    $checkOutDate = $booking['check_out'] ?? $booking['check_out_date'] ?? null;
+    
+    if (!$checkInDate || !$checkOutDate) {
+        continue; // ข้ามถ้าไม่มีวันที่
+    }
+    
+    $checkIn = new DateTime($checkInDate);
+    $checkOut = new DateTime($checkOutDate);
     
     // Add booking to each date in the range
     $current = clone $checkIn;

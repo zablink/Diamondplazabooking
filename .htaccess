@@ -1,0 +1,40 @@
+RewriteEngine On
+RewriteBase /booking/
+
+# กรณีที่ path เป็น /booking/en/ หรือ /booking/th/ หรือ /booking/zh/ (ไม่มีไฟล์ต่อท้าย)
+# ให้ rewrite ไปที่ index.php พร้อม lang parameter
+# หมายเหตุ: zh จะถูก fallback เป็น en ใน PHP
+RewriteRule ^(th|en|zh)/?$ index.php?lang=$1 [L,QSA]
+
+# ถ้ามีภาษาใน path และเป็น directory (ไม่มีไฟล์ต่อท้าย)
+# ให้ส่งต่อไปยัง index.php ใน directory นั้น
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteCond %{REQUEST_URI} ^/booking/(th|en|zh)/(.*)$
+RewriteRule ^(th|en|zh)/(.*)$ $1/$2index.php?lang=$1 [L,QSA]
+
+# ถ้ามีภาษาใน path และไฟล์มีอยู่ ให้ส่งต่อไปยังไฟล์นั้นพร้อม lang parameter
+# ต้องตรวจสอบก่อนว่าไฟล์มีอยู่จริง
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteCond %{REQUEST_URI} ^/booking/(th|en|zh)/(.+)$
+RewriteRule ^(th|en|zh)/(.*)$ $2?lang=$1 [L,QSA]
+
+# ถ้ามีภาษาใน path (th, en, หรือ zh) แต่ไฟล์ไม่มี ให้ส่งต่อไปยังไฟล์จริง
+# ตัวอย่าง: /booking/th/index.php -> /booking/index.php (แต่เก็บ lang ใน query string)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(th|en|zh)/(.*)$ $2?lang=$1 [L,QSA]
+
+# ถ้าไม่มีภาษาใน URL และเป็นไฟล์ PHP ให้ redirect ไปยัง URL ที่มีภาษา
+# แต่ไม่ redirect ถ้าเป็น admin หรือ auth หรือถ้ามี lang parameter แล้ว
+RewriteCond %{REQUEST_URI} !^/booking/(th|en|zh)/
+RewriteCond %{REQUEST_URI} !^/booking/admin/
+RewriteCond %{REQUEST_URI} !^/booking/auth/
+RewriteCond %{REQUEST_URI} \.php$
+RewriteCond %{QUERY_STRING} !lang=
+RewriteRule ^(.*)$ th/$1 [L,R=301]
+
+# ป้องกันการเข้าถึงไฟล์ที่สำคัญ
+<FilesMatch "^(config|includes|modules|database)">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
