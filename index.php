@@ -50,39 +50,37 @@ require_once PROJECT_ROOT . '/includes/header.php';
             <div class="rooms-grid">
                 <?php foreach ($roomTypes as $room): ?>
                     <?php
-                    // ดึง featured image
+                    // ... (get featured image and amenities)
                     $featuredImage = $roomImage->getFeaturedImage($room['room_type_id']);
-                    
-                    // [REVISED] ดึง amenities พร้อมคำแปลและไอคอน
                     $amenitiesData = $hotel->getTranslatedAmenities($room['room_type_id']);
-                    $amenities = array_slice($amenitiesData, 0, 4); // แสดงแค่ 4 รายการแรก
+                    $amenities = array_slice($amenitiesData, 0, 4);
                     ?>
                     <div class="room-card">
-                        <!-- ... Room Image, Status Badge, Breakfast Badge ... -->
+                        <!-- ... Room Image ... -->
 
                         <!-- Room Content -->
                         <div class="room-content">
-                            <!-- ... Room Header, Description, Meta ... -->
+                            <!-- ... Room Header, Description ... -->
 
-                            <!-- [REVISED] Amenities Preview -->
-                            <?php if (!empty($amenities)): ?>
-                            <div class="amenities-preview">
-                                <?php foreach ($amenities as $amenity): ?>
-                                    <span class="amenity-tag">
-                                        <i class="<?= htmlspecialchars($amenity['amenity_icon'] ?? 'fas fa-check') ?>"></i>
-                                        <?= htmlspecialchars(getAmenityName($amenity)) ?>
-                                    </span>
-                                <?php endforeach; ?>
-                                <?php if (count($amenitiesData) > 4): ?>
-                                    <span class="amenity-tag">
-                                        <i class="fas fa-plus"></i>
-                                        +<?= count($amenitiesData) - 4 ?> <?php _e('home.more'); ?>
-                                    </span>
+                            <!-- [REVISED] Room Meta -->
+                            <div class="room-meta">
+                                <div class="meta-item">
+                                    <i class="fas fa-users"></i>
+                                    <span><?= $room['max_occupancy'] ?> <?php _e('home.people'); ?></span>
+                                </div>
+                                <div class="meta-item">
+                                    <i class="fas fa-door-open"></i>
+                                    <span><?= $room['current_availability'] ?? 0 ?> <?php _e('home.available_rooms'); ?></span>
+                                </div>
+                                <?php if ($room['breakfast_included']): ?>
+                                <div class="meta-item">
+                                    <i class="fas fa-utensils"></i>
+                                    <span><?php _e('home.breakfast_included'); ?></span>
+                                </div>
                                 <?php endif; ?>
                             </div>
-                            <?php endif; ?>
 
-                            <!-- ... Room Footer ... -->
+                            <!-- ... Amenities Preview, Room Footer ... -->
                         </div>
                     </div>
                 <?php endforeach; ?>
