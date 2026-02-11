@@ -25,7 +25,7 @@ require_once PROJECT_ROOT . '/modules/hotel/Hotel.php';
 
 $hotelObj = new Hotel();
 
-// ดึงข้อมูลโรงแรม
+// ดึงข้อมูลโรงแรม ..
 $hotel = $hotelObj->getHotelById(HOTEL_ID);
 
 if (!$hotel) {
