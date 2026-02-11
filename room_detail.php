@@ -1,5 +1,4 @@
 <?php
-error_reporting(1);
 /**
  * Room Detail Page - Production Version
  * พร้อม Image Gallery และ Booking Form
@@ -787,30 +786,10 @@ require_once PROJECT_ROOT . '/includes/header.php';
                     <?php _e('home.amenities'); ?>
                 </h3>
                 <div class="amenities-grid">
-                  <!--
-                AMENITIES ARRAY
-<?php
-    print_r($roomAmenities);
-?>
-            -->
                     <?php foreach ($roomAmenities as $amenity): ?>
                         <div class="amenity-item">
                             <i class="fas fa-check"></i>
-                            <span><i class="<?php echo $amenity['amenity_icon'];?>"></i></span>
-                            <?php
-                            if ($currentLang === 'th' && !empty($amenity['amenity_name_th'])) {
-                                $amenity_text = $amenity['amenity_name_th'];
-                            } elseif ($currentLang === 'en' && !empty($amenity['amenity_name_en'])) {
-                                $amenity_text = $amenity['amenity_name_en'];
-                            } elseif ($currentLang === 'zh' && !empty($amenity['amenity_name_zh'])) {
-                                $amenity_text = $amenity['amenity_name_zh'];
-                            } elseif (!empty($amenity['amenity_name'])) {
-                                $amenity_text = $room['amenity_name'];
-                            } else {
-                                $amenity_text = ' ';
-                            }
-                            ?>
-                            <strong><?php echo $amenity_text; ?></strong>
+                            <span><?= htmlspecialchars($amenity) ?></span>
                         </div>
                     <?php endforeach; ?>
                 </div>
