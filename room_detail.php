@@ -18,6 +18,7 @@ require_once $projectRoot . '/includes/init.php';
 require_once PROJECT_ROOT . '/includes/helpers.php';
 require_once PROJECT_ROOT . '/modules/hotel/Hotel.php';
 require_once PROJECT_ROOT . '/includes/PriceCalculator.php';
+require_once PROJECT_ROOT . '/includes/RoomImage.php'; // เพิ่มการเรียกใช้ RoomImage
 
 // รับ room_type_id จาก URL
 $room_type_id = $_GET['room_type_id'] ?? $_GET['id'] ?? null;
@@ -30,6 +31,7 @@ if (!$room_type_id) {
 // โหลดข้อมูลห้องพัก
 $hotel = new Hotel();
 $priceCalculator = new PriceCalculator();
+$roomImage = new RoomImage(); // สร้าง instance ของ RoomImage
 $room = $hotel->getRoomTypeById($room_type_id);
 
 if (!$room) {
@@ -37,9 +39,9 @@ if (!$room) {
     redirect('index.php');
 }
 
-// โหลดรูปภาพทั้งหมด
-$images = $hotel->getRoomImages($room_type_id);
-$featuredImage = $hotel->getFeaturedImage($room_type_id);
+// โหลดรูปภาพทั้งหมดผ่าน RoomImage
+$images = $roomImage->getRoomImages($room_type_id);
+$featuredImage = $roomImage->getFeaturedImage($room_type_id);
 
 // โหลด amenities พร้อมคำแปลและไอคอน
 $roomAmenities = $hotel->getTranslatedAmenities($room_type_id);
@@ -55,8 +57,7 @@ if (!empty($room['hotel_id'])) {
     }
 }
 
-// ... (รับค่าจาก URL และตั้งค่าวันที่)
-
+// ... (ส่วนที่เหลือของไฟล์เหมือนเดิม)
 $page_title = htmlspecialchars($room['room_type_name']) . ' - ' . SITE_NAME;
 require_once PROJECT_ROOT . '/includes/header.php';
 ?>
