@@ -62,18 +62,18 @@ require_once PROJECT_ROOT . '/includes/header.php';
                         <div class="room-content">
                             <!-- ... Room Header, Description ... -->
 
-                            <!-- [REVISED] Room Meta -->
-                            <div class="room-meta">
-                                <div class="meta-item">
+                            <!-- Room Features -->
+                            <div class="room-features">
+                                <div class="room-feature">
                                     <i class="fas fa-users"></i>
                                     <span><?= $room['max_occupancy'] ?> <?php _e('home.people'); ?></span>
                                 </div>
-                                <div class="meta-item">
+                                <div class="room-feature">
                                     <i class="fas fa-door-open"></i>
                                     <span><?= $room['current_availability'] ?? 0 ?> <?php _e('home.available_rooms'); ?></span>
                                 </div>
                                 <?php if ($room['breakfast_included']): ?>
-                                <div class="meta-item">
+                                <div class="room-feature">
                                     <i class="fas fa-utensils"></i>
                                     <span><?php _e('home.breakfast_included'); ?></span>
                                 </div>
