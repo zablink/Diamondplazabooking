@@ -40,7 +40,7 @@ if (!$room) {
 }
 
 // โหลดรูปภาพทั้งหมดผ่าน RoomImage
-$images = $roomImage->getRoomImages($room_type_id);
+$images = $roomImage->getImages($room_type_id);
 $featuredImage = $roomImage->getFeaturedImage($room_type_id);
 
 // โหลด amenities พร้อมคำแปลและไอคอน
