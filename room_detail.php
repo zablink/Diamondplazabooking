@@ -809,7 +809,7 @@ require_once PROJECT_ROOT . '/includes/header.php';
                                 $amenity_text = ' ';
                             }
                             ?>
-                            <span><?= htmlspecialchars($amenity_text) ?></span>
+                            <span><?php echo htmlspecialchars($amenity_text); ?></span>
                         </div>
                     <?php endforeach; ?>
                 </div>
