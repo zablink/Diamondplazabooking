@@ -53,7 +53,7 @@ require_once PROJECT_ROOT . '/includes/header.php';
                     // ดึง featured image
                     $featuredImage = $roomImage->getFeaturedImage($room['room_type_id']);
                     
-                    // [REVISED] ดึง amenities พร้อมคำแปลและไอคอน
+                    // ดึง amenities พร้อมคำแปลและไอคอน
                     $amenitiesData = $hotel->getTranslatedAmenities($room['room_type_id']);
                     $amenities = array_slice($amenitiesData, 0, 4); // แสดงแค่ 4 รายการแรก
                     ?>
@@ -62,9 +62,27 @@ require_once PROJECT_ROOT . '/includes/header.php';
 
                         <!-- Room Content -->
                         <div class="room-content">
-                            <!-- ... Room Header, Description, Meta ... -->
+                            <!-- ... Room Header, Description ... -->
 
-                            <!-- [REVISED] Amenities Preview -->
+                            <!-- Room Features -->
+                            <div class="room-features">
+                                <div class="room-feature">
+                                    <i class="fas fa-users"></i>
+                                    <span><?= $room['max_occupancy'] ?> <?php _e('home.people'); ?></span>
+                                </div>
+                                <div class="room-feature">
+                                    <i class="fas fa-door-open"></i>
+                                    <span><?= $room['current_availability'] ?? 0 ?> <?php _e('home.available_rooms'); ?></span>
+                                </div>
+                                <?php if ($room['breakfast_included']): ?>
+                                <div class="room-feature">
+                                    <i class="fas fa-utensils"></i>
+                                    <span><?php _e('home.breakfast_included'); ?></span>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+
+                            <!-- Amenities Preview -->
                             <?php if (!empty($amenities)): ?>
                             <div class="amenities-preview">
                                 <?php foreach ($amenities as $amenity): ?>
