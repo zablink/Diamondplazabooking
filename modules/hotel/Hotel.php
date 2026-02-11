@@ -54,6 +54,7 @@ class Hotel {
         }
     }
     
+    /*
     public function getRoomTypeById($roomTypeId) {
         try {
             // ... (code to add columns if they don't exist)
@@ -72,6 +73,7 @@ class Hotel {
             return null;
         }
     }
+        */
 
     /**
      * ดึงข้อมูลประเภทห้องพักตาม ID
@@ -318,7 +320,7 @@ class Hotel {
         }
     }
 
-    
+
     /**
      * ดึง amenities ของห้องพัก
      */
