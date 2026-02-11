@@ -786,6 +786,12 @@ require_once PROJECT_ROOT . '/includes/header.php';
                     <?php _e('home.amenities'); ?>
                 </h3>
                 <div class="amenities-grid">
+                  <!--
+                AMENITIES ARRAY
+<?php
+    print_r($roomAmenities);
+?>
+            -->
                     <?php foreach ($roomAmenities as $amenity): ?>
                         <!--
                         <?php print_r($amenity);?>
