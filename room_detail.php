@@ -629,34 +629,267 @@ require_once PROJECT_ROOT . '/includes/header.php';
 </style>
 
 <div class="room-detail-container">
-    <!-- ... Breadcrumb, Flash Message, Image Gallery ... -->
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <a href="index.php"><i class="fas fa-home"></i> <?php _e('rooms.home'); ?></a>
+        <i class="fas fa-chevron-right" style="margin: 0 10px; font-size: 12px;"></i>
+        <span><?= htmlspecialchars($room['room_type_name']) ?></span>
+    </div>
     
+    <!-- Flash Message -->
+    <?php $flash = getFlashMessage(); ?>
+    <?php if ($flash): ?>
+        <div class="alert alert-<?= $flash['type'] ?>" style="margin-bottom: 20px; padding: 15px; border-radius: 8px; background: <?= $flash['type'] == 'error' ? '#f8d7da' : '#d4edda' ?>; color: <?= $flash['type'] == 'error' ? '#721c24' : '#155724' ?>;">
+            <i class="fas fa-<?= $flash['type'] == 'error' ? 'exclamation-circle' : 'check-circle' ?>"></i>
+            <?= htmlspecialchars($flash['message']) ?>
+        </div>
+    <?php endif; ?>
+    
+    <!-- Image Gallery -->
+    <?php if (!empty($images) && count($images) > 0): ?>
+    <div class="image-gallery">
+        <div class="main-image-container">
+            <img src="<?= htmlspecialchars($images[0]['image_path'] ?? 'assets/images/default-room.jpg') ?>" 
+                 alt="<?= htmlspecialchars($room['room_type_name']) ?>" 
+                 class="main-image" 
+                 id="mainImage"
+                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22800%22 height=%22500%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22800%22 height=%22500%22/%3E%3Ctext fill=%22%23999%22 font-family=%22Arial%22 font-size=%2220%22 text-anchor=%22middle%22 x=%22400%22 y=%22250%22%3ENo Image Available%3C/text%3E%3C/svg%3E'">
+            
+            <?php if (count($images) > 1): ?>
+            <div class="gallery-nav">
+                <button id="prevBtn" onclick="changeImage(-1)">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button id="nextBtn" onclick="changeImage(1)">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            
+            <div class="image-counter">
+                <span id="currentIndex">1</span> / <?= count($images) ?>
+            </div>
+            <?php endif; ?>
+        </div>
+        
+        <?php if (count($images) > 1): ?>
+        <div class="thumbnails-container">
+            <?php foreach ($images as $index => $image): ?>
+            <div class="thumbnail <?= $index === 0 ? 'active' : '' ?>" 
+                 onclick="showImage(<?= $index ?>)"
+                 data-index="<?= $index ?>">
+                <img src="<?= htmlspecialchars($image['image_path']) ?>" 
+                     alt="Image <?= $index + 1 ?>"
+                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%2280%22%3E%3Crect fill=%22%23ddd%22 width=%22120%22 height=%2280%22/%3E%3Ctext fill=%22%23999%22 font-family=%22Arial%22 font-size=%2212%22 text-anchor=%22middle%22 x=%2260%22 y=%2245%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php else: ?>
+    <!-- Fallback: แสดงรูป default ถ้าไม่มีรูปในระบบ -->
+    <div class="image-gallery">
+        <div class="main-image-container">
+            <img src="assets/images/default-room.jpg" 
+                 alt="<?= htmlspecialchars($room['room_type_name']) ?>" 
+                 class="main-image"
+                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22800%22 height=%22500%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22800%22 height=%22500%22/%3E%3Ctext fill=%22%23999%22 font-family=%22Arial%22 font-size=%2224%22 text-anchor=%22middle%22 x=%22400%22 y=%22240%22%3E%F0%9F%8F%A8 No Image Available%3C/text%3E%3Ctext fill=%22%23aaa%22 font-family=%22Arial%22 font-size=%2216%22 text-anchor=%22middle%22 x=%22400%22 y=%22270%22%3EPlease upload room images in admin panel%3C/text%3E%3C/svg%3E'">
+        </div>
+    </div>
+    <?php endif; ?>
+
+
     <div class="room-content">
         <div class="room-main">
-            <!-- ... Room Title, Description ... -->
+            <h1 class="room-title"><?= htmlspecialchars($room['room_type_name']) ?></h1>
             
+            <p class="room-description">
+                <?php
+                // รองรับหลายภาษา: ตรวจสอบว่ามี description_th/en/zh หรือไม่
+                $currentLang = getCurrentLanguage();
+                $roomDescription = '';
+                
+                if ($currentLang === 'th' && !empty($room['description_th'])) {
+                    $roomDescription = $room['description_th'];
+                } elseif ($currentLang === 'en' && !empty($room['description_en'])) {
+                    $roomDescription = $room['description_en'];
+                } elseif ($currentLang === 'zh' && !empty($room['description_zh'])) {
+                    $roomDescription = $room['description_zh'];
+                } elseif (!empty($room['description'])) {
+                    // ถ้าไม่มี description_th/en/zh แต่มี description เดิม ให้ใช้
+                    $roomDescription = $room['description'];
+                } else {
+                    // ถ้าไม่มีเลย ให้ใช้ default
+                    $roomDescription = __('home.comfortable_room');
+                }
+                ?>
+                <?= nl2br(htmlspecialchars($roomDescription)) ?>
+            </p>
+            
+            <!-- Features -->
             <div class="features-grid">
-                <!-- ... Room Size, Max Occupancy, Bed Type ... -->
+                <div class="feature-item">
+                    <i class="fas fa-expand-arrows-alt"></i>
+                    <div>
+                        <strong><?= $room['size_sqm'] ?? 35 ?> <?php _e('rooms.sqm'); ?></strong>
+                        <div style="font-size: 13px; color: #999;"><?php _e('rooms.room_size'); ?></div>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <i class="fas fa-users"></i>
+                    <div>
+                        <strong><?php _e('rooms.max'); ?> <?= $room['max_occupancy'] ?> <?php _e('home.people'); ?></strong>
+                        <div style="font-size: 13px; color: #999;"><?php _e('rooms.max_occupancy_label'); ?></div>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <i class="fas fa-bed"></i>
+                    <div>
+                        <?php
+                        // รองรับหลายภาษา: ตรวจสอบว่ามี bed_type_th/en/zh หรือไม่
+                        // ใช้ $currentLang ที่ประกาศไว้แล้วด้านบน
+                        $bedType = '';
+                        if ($currentLang === 'th' && !empty($room['bed_type_th'])) {
+                            $bedType = $room['bed_type_th'];
+                        } elseif ($currentLang === 'en' && !empty($room['bed_type_en'])) {
+                            $bedType = $room['bed_type_en'];
+                        } elseif ($currentLang === 'zh' && !empty($room['bed_type_zh'])) {
+                            $bedType = $room['bed_type_zh'];
+                        } elseif (!empty($room['bed_type'])) {
+                            // ถ้าไม่มี bed_type_th/en/zh แต่มี bed_type เดิม ให้ใช้
+                            $bedType = $room['bed_type'];
+                        } else {
+                            // ถ้าไม่มีเลย ให้ใช้ default
+                            $bedType = __('rooms.king_bed');
+                        }
+                        ?>
+                        <strong><?= htmlspecialchars($bedType) ?></strong>
+                        <div style="font-size: 13px; color: #999;"><?php _e('rooms.bed_type_label'); ?></div>
+                    </div>
+                </div>
+                
                 <div class="feature-item">
                     <i class="fas fa-door-open"></i>
                     <div>
-                        <strong><?= $room['current_availability'] ?? 0 ?> <?php _e('common.rooms'); ?></strong>
-                        <div style="font-size: 13px; color: #999;"><?php _e('rooms.available_today'); ?></div>
+                        <strong><?= $room['current_availability'] ?? __('rooms.not_specified') ?> <?php _e('common.rooms'); ?></strong>
+                        <div style="font-size: 13px; color: #999;"><?php _e('rooms.total_rooms_label'); ?></div>
                     </div>
                 </div>
             </div>
             
-            <!-- ... Amenities Section ... -->
+            <!-- Amenities -->
+            <?php if (!empty($roomAmenities)): ?>
+            <div class="amenities-section">
+                <h3>
+                    <i class="fas fa-check-circle" style="color: #27ae60;"></i>
+                    <?php _e('home.amenities'); ?>
+                </h3>
+                <div class="amenities-grid">
+                    <?php foreach ($roomAmenities as $amenity): ?>
+                        <div class="amenity-item">
+                            <i class="fas fa-check"></i>
+                            <span><?= htmlspecialchars($amenity) ?></span>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
         
         <div class="booking-panel">
-            <!-- ... Price Badge, Breakfast Info ... -->
+        <h3>
+                <i class="fas fa-calendar-check"></i> <?php _e('rooms.book_room'); ?>
+            </h3>
+            
+            <!-- Price Badge -->
+            <div class="price-badge">
+                <div class="price-label white-text"><?php _e('rooms.starting_price'); ?></div>
+                <?php
+                // ดึงราคาจาก daily rates หรือ base price
+                $priceInfo = $priceCalculator->getSimplePrice($room_type_id);
+                $displayPrice = $priceInfo ? $priceInfo['from_price'] : $room['base_price'];
+                ?>
+                <div class="price-amount white-text">฿<?= number_format($displayPrice, 0) ?></div>
+                <div style="font-size: 13px; opacity: 0.9; margin-top: 5px;"><?php _e('rooms.per_night'); ?></div>
+            </div>
+            
+            <!-- Breakfast Info -->
+            <?php if ($room['breakfast_included']): ?>
+                <div class="breakfast-info">
+                    <i class="fas fa-check-circle"></i>
+                    <strong><?php _e('rooms.breakfast_included_price'); ?></strong>
+                </div>
+            <?php else: ?>
+                <div class="breakfast-info not-included">
+                    <i class="fas fa-info-circle"></i>
+                    <strong><?php _e('rooms.breakfast_not_included'); ?></strong>
+                    <?php if ($room['breakfast_price'] > 0): ?>
+                        <div style="margin-top: 5px;">
+                            <?php printf(__('rooms.add_breakfast_per_person'), number_format($room['breakfast_price'], 0)); ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
             
             <form method="GET" action="booking.php" id="bookingForm">
                 <input type="hidden" name="room_type_id" value="<?= $room_type_id ?>">
                 
-                <!-- ... Check-in, Check-out, Adults, Children ... -->
+                <!-- Check-in Date -->
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-calendar-alt"></i> <?php _e('rooms.check_in_date'); ?> <span style="color: red;">*</span>
+                    </label>
+                    <input type="date" 
+                           name="check_in" 
+                           id="check_in"
+                           min="<?= $today ?>"
+                           value="<?= htmlspecialchars($check_in) ?>"
+                           required>
+                </div>
                 
+                <!-- Check-out Date -->
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-calendar-alt"></i> <?php _e('rooms.check_out_date'); ?> <span style="color: red;">*</span>
+                    </label>
+                    <input type="date" 
+                           name="check_out" 
+                           id="check_out"
+                           min="<?= $tomorrow ?>"
+                           value="<?= htmlspecialchars($check_out) ?>"
+                           required>
+                </div>
+                
+                <!-- Adults -->
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-user"></i> <?php _e('rooms.adults'); ?> <span style="color: red;">*</span>
+                    </label>
+                    <select name="adults" id="adults" required>
+                        <?php for ($i = 1; $i <= $room['max_occupancy']; $i++): ?>
+                            <option value="<?= $i ?>" <?= $adults == $i ? 'selected' : '' ?>>
+                                <?= $i ?> <?php _e('common.people'); ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+                
+                <!-- Children -->
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-child"></i> <?php _e('rooms.children'); ?>
+                    </label>
+                    <select name="children" id="children">
+                        <?php for ($i = 0; $i <= 3; $i++): ?>
+                            <option value="<?= $i ?>" <?= $children == $i ? 'selected' : '' ?>>
+                                <?= $i ?> <?php _e('common.people'); ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+
+
                 <div class="form-group">
                     <label>
                         <i class="fas fa-door-open"></i> <?php _e('rooms.number_of_rooms'); ?> <span style="color: red;">*</span>
@@ -686,11 +919,145 @@ require_once PROJECT_ROOT . '/includes/header.php';
         </div>
     </div>
     
-    <!-- ... Other Rooms Section ... -->
+    <!-- Other Rooms Section -->
+    <?php if (!empty($otherRoomTypes)): ?>
+    <div class="other-rooms-section">
+        <h2>
+            <i class="fas fa-door-open"></i> <?php echo function_exists('__') && defined('LANG') ? (LANG === 'th' ? 'ห้องพักอื่นๆ' : (LANG === 'zh' ? '其他房间' : 'Other Rooms')) : 'Other Rooms'; ?>
+        </h2>
+        <div class="other-rooms-grid">
+            <?php foreach ($otherRoomTypes as $otherRoom): 
+                $otherRoomImage = $hotel->getFeaturedImage($otherRoom['room_type_id']);
+                $otherRoomImagePath = $otherRoomImage ? $otherRoomImage['image_path'] : 'assets/images/default-room.jpg';
+            ?>
+            <a href="room_detail.php?room_type_id=<?= $otherRoom['room_type_id'] ?>" class="other-room-card">
+                <div class="other-room-image-wrapper">
+                    <img src="<?= htmlspecialchars($otherRoomImagePath) ?>" 
+                         alt="<?= htmlspecialchars($otherRoom['room_type_name']) ?>"
+                         class="other-room-image"
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22250%22 height=%22200%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22250%22 height=%22200%22/%3E%3Ctext fill=%22%23999%22 font-family=%22Arial%22 font-size=%2214%22 text-anchor=%22middle%22 x=%22125%22 y=%22100%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+                    <div class="other-room-overlay"></div>
+                    <div class="other-room-price-badge">
+                        ฿<?= number_format($otherRoom['base_price'], 0) ?>/<?php _e('common.night'); ?>
+                    </div>
+                    <?php if (!empty($otherRoom['breakfast_included']) && $otherRoom['breakfast_included'] == 1): ?>
+                    <div class="other-room-breakfast-badge">
+                        <i class="fas fa-utensils"></i>
+                        <span><?php _e('home.breakfast_included'); ?></span>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <div class="other-room-info">
+                    <h3 class="other-room-name"><?= htmlspecialchars($otherRoom['room_type_name']) ?></h3>
+                    <div class="other-room-features">
+                        <?php if (!empty($otherRoom['size_sqm'])): ?>
+                        <div class="other-room-feature">
+                            <i class="fas fa-expand-arrows-alt"></i>
+                            <span><?= $otherRoom['size_sqm'] ?> <?php _e('rooms.sqm'); ?></span>
+                        </div>
+                        <?php endif; ?>
+                        <?php if (!empty($otherRoom['max_occupancy'])): ?>
+                        <div class="other-room-feature">
+                            <i class="fas fa-users"></i>
+                            <span><?= $otherRoom['max_occupancy'] ?> <?php _e('home.people'); ?></span>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    <button type="button" class="other-room-view-btn">
+                        <i class="fas fa-eye"></i> <?php _e('common.view_details'); ?>
+                    </button>
+                </div>
+            </a>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 </div>
 
 <script>
-    // ... JavaScript ...
+// ===== IMAGE GALLERY =====
+<?php if (!empty($images) && count($images) > 1): ?>
+const images = <?= json_encode(array_map(function($img) { return $img['image_path']; }, $images)) ?>;
+let currentImageIndex = 0;
+
+function showImage(index) {
+    if (index < 0 || index >= images.length) return;
+    
+    currentImageIndex = index;
+    
+    // Update main image
+    document.getElementById('mainImage').src = images[index];
+    
+    // Update counter
+    document.getElementById('currentIndex').textContent = index + 1;
+    
+    // Update thumbnail active state
+    document.querySelectorAll('.thumbnail').forEach((thumb, i) => {
+        if (i === index) {
+            thumb.classList.add('active');
+        } else {
+            thumb.classList.remove('active');
+        }
+    });
+    
+    // Update navigation buttons
+    document.getElementById('prevBtn').disabled = index === 0;
+    document.getElementById('nextBtn').disabled = index === images.length - 1;
+}
+
+function changeImage(direction) {
+    const newIndex = currentImageIndex + direction;
+    if (newIndex >= 0 && newIndex < images.length) {
+        showImage(newIndex);
+    }
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowLeft') {
+        changeImage(-1);
+    } else if (e.key === 'ArrowRight') {
+        changeImage(1);
+    }
+});
+
+// Initialize
+showImage(0);
+<?php endif; ?>
+
+// ===== BOOKING FORM VALIDATION =====
+document.getElementById('bookingForm').addEventListener('submit', function(e) {
+    const checkIn = document.getElementById('check_in').value;
+    const checkOut = document.getElementById('check_out').value;
+    
+    if (!checkIn || !checkOut) {
+        e.preventDefault();
+        alert('<?php echo addslashes(__('rooms.please_select_dates')); ?>');
+        return;
+    }
+    
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    
+    if (checkOutDate <= checkInDate) {
+        e.preventDefault();
+        alert('<?php echo addslashes(__('rooms.checkout_after_checkin')); ?>');
+        return;
+    }
+    
+    // Disable button to prevent double submit
+    const btn = this.querySelector('.btn-book');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <?php echo addslashes(__('rooms.processing')); ?>';
+});
+
+// Update check-out min date when check-in changes
+document.getElementById('check_in').addEventListener('change', function() {
+    const checkInDate = new Date(this.value);
+    checkInDate.setDate(checkInDate.getDate() + 1);
+    const minCheckOut = checkInDate.toISOString().split('T')[0];
+    document.getElementById('check_out').min = minCheckOut;
+});
 </script>
 
 <?php require_once PROJECT_ROOT . '/includes/footer.php'; ?>
