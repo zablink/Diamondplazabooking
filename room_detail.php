@@ -803,9 +803,9 @@ require_once PROJECT_ROOT . '/includes/header.php';
                                 $amenity_text = $amenity['amenity_name_en'];
                             } elseif ($currentLang === 'zh' && !empty($amenity['amenity_name_zh'])) {
                                 $amenity_text = $amenity['amenity_name_zh'];
-                            } elseif (!empty($amenity['amenity_name'])) {.
+                            } elseif (!empty($amenity['amenity_name'])) {
                                 $amenity_text = $room['amenity_name'];
-                            } else {.
+                            } else {
                                 $amenity_text = ' ';
                             }
                             ?>
