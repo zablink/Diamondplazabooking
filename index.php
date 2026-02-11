@@ -25,7 +25,7 @@ require_once PROJECT_ROOT . '/modules/hotel/Hotel.php';
 
 $hotelObj = new Hotel();
 
-// ดึงข้อมูลโรงแรม ..
+// ดึงข้อมูลโรงแรม
 $hotel = $hotelObj->getHotelById(HOTEL_ID);
 
 if (!$hotel) {
@@ -51,6 +51,19 @@ $page_title = htmlspecialchars($hotel['hotel_name']) . ' - ' . SITE_NAME;
 include './includes/header.php';
 ?>
 
+    <style>
+        .room-card-container {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 6px 25px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        .room-card-container:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+        }
+    </style>
     <!-- Flash Message -->
     <?php if ($flashMessage): ?>
     <div class="container" style="margin-top: 20px;">
@@ -168,9 +181,7 @@ include './includes/header.php';
                 foreach ($roomTypes as $room):
                     $roomAmenities = parseJSON($room['amenities']);
                 ?>
-                <div style="background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 6px 25px rgba(0,0,0,0.1); transition: all 0.3s ease;" 
-                     onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 12px 35px rgba(0,0,0,0.15)';" 
-                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 25px rgba(0,0,0,0.1)';">
+                <div class="room-card-container">
                     
                     <div style="display: grid; grid-template-columns: 400px 1fr; gap: 0; min-height: 350px;">
                         <!-- Room Image Section -->
