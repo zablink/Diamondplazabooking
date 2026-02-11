@@ -788,7 +788,7 @@ require_once PROJECT_ROOT . '/includes/header.php';
                 <div class="amenities-grid">
                     <?php foreach ($roomAmenities as $amenity): ?>
                         <!--
-                        print_r($amenity);
+                        <?php print_r($amenity);?>
                     -->
                         <div class="amenity-item">
                             <i class="fas fa-check"></i>
