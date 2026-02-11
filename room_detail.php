@@ -793,12 +793,23 @@ require_once PROJECT_ROOT . '/includes/header.php';
 ?>
             -->
                     <?php foreach ($roomAmenities as $amenity): ?>
-                        <!--
-                        <?php print_r($amenity);?>
-                    -->
                         <div class="amenity-item">
                             <i class="fas fa-check"></i>
-                            <span><?= htmlspecialchars($amenity) ?></span>
+                            <span><i class="<?php $amenity['amenity_icon'];?>"></i></span>
+                            <?php
+                            if ($currentLang === 'th' && !empty($amenity['amenity_name_th'])) {
+                                $amenity_text = $amenity['amenity_name_th'];
+                            } elseif ($currentLang === 'en' && !empty($amenity['amenity_name_en'])) {
+                                $amenity_text = $amenity['amenity_name_en'];
+                            } elseif ($currentLang === 'zh' && !empty($amenity['amenity_name_zh'])) {
+                                $amenity_text = $amenity['amenity_name_zh'];
+                            } elseif (!empty($amenity['amenity_name'])) {.
+                                $amenity_text = $room['amenity_name'];
+                            } else {.
+                                $amenity_text = ' ';
+                            }
+                            ?>
+                            <span><?= htmlspecialchars($amenity_text) ?></span>
                         </div>
                     <?php endforeach; ?>
                 </div>
