@@ -214,6 +214,16 @@ include './includes/header.php';
                                             <div style="font-weight: 700; color: var(--text-primary); font-size: 1.1rem;">สูงสุด <?php echo $room['max_occupancy']; ?> คน</div>
                                         </div>
                                     </div>
+
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);">
+                                            <i class="fas fa-door-open" style="color: white; font-size: 1.3rem;"></i>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 0.9rem; color: var(--text-secondary);">ห้องว่าง</div>
+                                            <div style="font-weight: 700; color: var(--text-primary); font-size: 1.1rem;"><?php echo $room['current_availability']; ?> ห้อง</div>
+                                        </div>
+                                    </div>
                                     
                                     <div style="display: flex; align-items: center; gap: 1rem;">
                                         <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);">
