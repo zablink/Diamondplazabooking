@@ -1,6 +1,6 @@
 <?php
 /**
- * booking/index.php
+ * booking/index.php.  
  * หน้าแรกระบบจองห้องพัก - แสดงรายการห้องพักทั้งหมดพร้อม Featured Image
  */
 
